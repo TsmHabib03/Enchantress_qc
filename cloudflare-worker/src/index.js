@@ -33,8 +33,9 @@ export default {
       }
 
       if (path !== "/health") {
+        const policy = getRatePolicy(path, method);
         const rateKey = await buildRateLimitKey(ip, path, body);
-        const rate = checkRateLimit(rateKey, path.startsWith("/appointments") ? 20 : 60, 60 * 1000);
+        const rate = checkRateLimit(rateKey, policy.maxRequests, policy.windowMs);
         if (!rate.allowed) {
           return corsJson(
             {
@@ -250,4 +251,14 @@ function resolveRoutePath(pathname) {
     return pathname.replace("/api", "") || "/";
   }
   return pathname || "/";
+}
+
+function getRatePolicy(path, method) {
+  if (path === "/appointments/create" && method === "POST") {
+    return { maxRequests: 12, windowMs: 60 * 1000 };
+  }
+  if (path === "/appointments/slots" && method === "GET") {
+    return { maxRequests: 120, windowMs: 60 * 1000 };
+  }
+  return { maxRequests: 60, windowMs: 60 * 1000 };
 }

@@ -5,10 +5,15 @@
   var slotList = document.getElementById("slot-list");
   var toast = document.getElementById("toast");
   var startTimeInput = document.getElementById("startTime");
+  var emailInput = document.getElementById("email");
+  var submitButton = form.querySelector("button[type='submit']");
   var categoryButtons = Array.prototype.slice.call(document.querySelectorAll(".service-toggle"));
   var filterNote = document.getElementById("service-filter-note");
   var allServices = [];
   var activeCategory = "all";
+  var slotsCache = {};
+  var slotsDebounceTimer = null;
+  var isSubmitting = false;
 
   var categoryLabels = {
     all: "All Services",
@@ -31,6 +36,56 @@
     buttons.forEach(function (btn) {
       btn.classList.toggle("active", btn.getAttribute("data-time") === timeText);
     });
+  }
+
+  function setSubmitting(isBusy) {
+    isSubmitting = isBusy;
+    submitButton.disabled = isBusy;
+    submitButton.textContent = isBusy ? "Confirming..." : "Confirm Booking";
+  }
+
+  function renderSlots(slots) {
+    slotList.innerHTML = "";
+    var firstAvailable = null;
+
+    slots.forEach(function (slot) {
+      var item = document.createElement("li");
+      item.className = "list-group-item";
+      if (slot.available) {
+        if (!firstAvailable) {
+          firstAvailable = slot.startTime;
+        }
+        item.innerHTML =
+          "<button type='button' class='btn btn-sm btn-outline-primary slot-select' data-time='" +
+          slot.startTime +
+          "'>" +
+          slot.startTime +
+          "</button> <small>available</small>";
+      } else {
+        item.innerHTML = "<strong>" + slot.startTime + "</strong> <small>busy</small>";
+      }
+      slotList.appendChild(item);
+    });
+
+    if (slots.length === 0) {
+      var emptyItem = document.createElement("li");
+      emptyItem.className = "list-group-item";
+      emptyItem.textContent = "No slots available for the selected date.";
+      slotList.appendChild(emptyItem);
+    }
+
+    var slotButtons = Array.prototype.slice.call(slotList.querySelectorAll(".slot-select"));
+    slotButtons.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setSelectedStartTime(btn.getAttribute("data-time"));
+      });
+    });
+
+    if (startTimeInput.value) {
+      setSelectedStartTime(startTimeInput.value);
+    } else if (firstAvailable) {
+      setSelectedStartTime(firstAvailable);
+    }
   }
 
   function formatDate(date) {
@@ -133,56 +188,38 @@
       return;
     }
 
+    var cacheKey = serviceSelect.value + "|" + dateInput.value;
+    if (slotsCache[cacheKey]) {
+      renderSlots(slotsCache[cacheKey]);
+      return;
+    }
+
     var data = await window.apiClient.get(
-      "/appointments/slots?serviceId=" + encodeURIComponent(serviceSelect.value) + "&date=" + encodeURIComponent(dateInput.value)
+      "/appointments/slots?serviceId=" + encodeURIComponent(serviceSelect.value) + "&date=" + encodeURIComponent(dateInput.value),
+      { retries: 0 }
     );
 
-    slotList.innerHTML = "";
-    var slots = data.slots || [];
-    var firstAvailable = null;
+    slotsCache[cacheKey] = data.slots || [];
+    renderSlots(slotsCache[cacheKey]);
+  }
 
-    slots.forEach(function (slot) {
-      var item = document.createElement("li");
-      item.className = "list-group-item";
-      if (slot.available) {
-        if (!firstAvailable) {
-          firstAvailable = slot.startTime;
-        }
-        item.innerHTML =
-          "<button type='button' class='btn btn-sm btn-outline-primary slot-select' data-time='" +
-          slot.startTime +
-          "'>" +
-          slot.startTime +
-          "</button> <small>available</small>";
-      } else {
-        item.innerHTML = "<strong>" + slot.startTime + "</strong> <small>busy</small>";
-      }
-      slotList.appendChild(item);
-    });
-
-    if (slots.length === 0) {
-      var emptyItem = document.createElement("li");
-      emptyItem.className = "list-group-item";
-      emptyItem.textContent = "No slots available for the selected date.";
-      slotList.appendChild(emptyItem);
+  function loadSlotsDebounced() {
+    if (slotsDebounceTimer) {
+      clearTimeout(slotsDebounceTimer);
     }
-
-    var slotButtons = Array.prototype.slice.call(slotList.querySelectorAll(".slot-select"));
-    slotButtons.forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        setSelectedStartTime(btn.getAttribute("data-time"));
+    slotsDebounceTimer = setTimeout(function () {
+      loadSlots().catch(function (error) {
+        showToast("error", error.message);
       });
-    });
-
-    if (startTimeInput.value) {
-      setSelectedStartTime(startTimeInput.value);
-    } else if (firstAvailable) {
-      setSelectedStartTime(firstAvailable);
-    }
+    }, 180);
   }
 
   async function submitBooking(event) {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
 
     if (!form.checkValidity()) {
       form.reportValidity();
@@ -198,7 +235,8 @@
     var payload = {
       customer: {
         fullName: document.getElementById("fullName").value.trim(),
-        phone: document.getElementById("phone").value.trim()
+        phone: document.getElementById("phone").value.trim(),
+        email: emailInput.value.trim()
       },
       serviceId: serviceSelect.value,
       date: dateInput.value,
@@ -206,13 +244,17 @@
     };
 
     try {
-      var data = await window.apiClient.post("/appointments/create", payload);
+      setSubmitting(true);
+      var data = await window.apiClient.post("/appointments/create", payload, { retries: 0 });
       showToast("success", "Booking confirmed. Ref: " + data.appointmentId);
+      slotsCache = {};
       await loadSlots();
       form.reset();
       dateInput.value = formatDate(Date.now());
       startTimeInput.value = "";
+      setSubmitting(false);
     } catch (error) {
+      setSubmitting(false);
       showToast("error", error.message);
     }
   }
@@ -220,8 +262,13 @@
   async function init() {
     dateInput.value = formatDate(Date.now());
     form.addEventListener("submit", submitBooking);
-    dateInput.addEventListener("change", loadSlots);
-    serviceSelect.addEventListener("change", loadSlots);
+    dateInput.addEventListener("change", function () {
+      slotsCache = {};
+      loadSlotsDebounced();
+    });
+    serviceSelect.addEventListener("change", function () {
+      loadSlotsDebounced();
+    });
     categoryButtons.forEach(function (button) {
       button.addEventListener("click", onCategoryToggle);
     });

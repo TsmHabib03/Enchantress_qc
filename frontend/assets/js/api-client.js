@@ -9,7 +9,7 @@
     var opts = options || {};
     var method = opts.method || "GET";
     var body = opts.body || null;
-    var retries = typeof opts.retries === "number" ? opts.retries : 2;
+    var retries = typeof opts.retries === "number" ? opts.retries : 0;
 
     var url = window.APP_CONFIG.API_BASE_URL.replace(/\/$/, "") + path;
     var headers = {
@@ -25,16 +25,27 @@
           body: body ? JSON.stringify(body) : undefined
         });
 
-        var payload = await response.json();
+        var payload = null;
+        try {
+          payload = await response.json();
+        } catch (parseErr) {
+          payload = null;
+        }
+
         if (!response.ok || !payload.success) {
+          var status = response.status;
           var code = payload && payload.error && payload.error.code ? payload.error.code : "API_ERROR";
           var message = payload && payload.error && payload.error.message ? payload.error.message : "Request failed";
-          throw new Error(code + ": " + message);
+          var apiError = new Error(code + ": " + message);
+          apiError.status = status;
+          apiError.retryable = status === 429 || status === 502 || status === 503 || status === 504;
+          throw apiError;
         }
 
         return payload.data;
       } catch (error) {
-        if (attempt === retries) {
+        var retryable = !!error.retryable || error.name === "TypeError";
+        if (attempt === retries || !retryable) {
           throw error;
         }
         await sleep(250 * Math.pow(2, attempt));
@@ -43,11 +54,11 @@
   }
 
   window.apiClient = {
-    get: function (path) {
-      return request(path, { method: "GET" });
+    get: function (path, options) {
+      return request(path, Object.assign({ method: "GET" }, options || {}));
     },
-    post: function (path, body) {
-      return request(path, { method: "POST", body: body });
+    post: function (path, body, options) {
+      return request(path, Object.assign({ method: "POST", body: body }, options || {}));
     }
   };
 })();
