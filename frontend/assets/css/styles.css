@@ -42,3 +42,9 @@ body {
   border-color: var(--brand);
   color: #fff;
 }
+
+.slot-select.active {
+  background-color: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}

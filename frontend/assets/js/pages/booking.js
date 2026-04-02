@@ -4,6 +4,7 @@
   var dateInput = document.getElementById("date");
   var slotList = document.getElementById("slot-list");
   var toast = document.getElementById("toast");
+  var startTimeInput = document.getElementById("startTime");
   var categoryButtons = Array.prototype.slice.call(document.querySelectorAll(".service-toggle"));
   var filterNote = document.getElementById("service-filter-note");
   var allServices = [];
@@ -22,6 +23,14 @@
     toast.className = "alert mt-3";
     toast.classList.add(type === "error" ? "alert-danger" : "alert-success");
     toast.textContent = text;
+  }
+
+  function setSelectedStartTime(timeText) {
+    startTimeInput.value = timeText;
+    var buttons = Array.prototype.slice.call(slotList.querySelectorAll(".slot-select"));
+    buttons.forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-time") === timeText);
+    });
   }
 
   function formatDate(date) {
@@ -120,6 +129,7 @@
 
   async function loadSlots() {
     if (!serviceSelect.value || !dateInput.value) {
+      slotList.innerHTML = "";
       return;
     }
 
@@ -128,16 +138,57 @@
     );
 
     slotList.innerHTML = "";
-    (data.slots || []).forEach(function (slot) {
+    var slots = data.slots || [];
+    var firstAvailable = null;
+
+    slots.forEach(function (slot) {
       var item = document.createElement("li");
       item.className = "list-group-item";
-      item.innerHTML = "<strong>" + slot.startTime + "</strong> <small>" + (slot.available ? "available" : "busy") + "</small>";
+      if (slot.available) {
+        if (!firstAvailable) {
+          firstAvailable = slot.startTime;
+        }
+        item.innerHTML =
+          "<button type='button' class='btn btn-sm btn-outline-primary slot-select' data-time='" +
+          slot.startTime +
+          "'>" +
+          slot.startTime +
+          "</button> <small>available</small>";
+      } else {
+        item.innerHTML = "<strong>" + slot.startTime + "</strong> <small>busy</small>";
+      }
       slotList.appendChild(item);
     });
+
+    if (slots.length === 0) {
+      var emptyItem = document.createElement("li");
+      emptyItem.className = "list-group-item";
+      emptyItem.textContent = "No slots available for the selected date.";
+      slotList.appendChild(emptyItem);
+    }
+
+    var slotButtons = Array.prototype.slice.call(slotList.querySelectorAll(".slot-select"));
+    slotButtons.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setSelectedStartTime(btn.getAttribute("data-time"));
+      });
+    });
+
+    if (startTimeInput.value) {
+      setSelectedStartTime(startTimeInput.value);
+    } else if (firstAvailable) {
+      setSelectedStartTime(firstAvailable);
+    }
   }
 
   async function submitBooking(event) {
     event.preventDefault();
+
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      showToast("error", "Please complete all required fields before booking.");
+      return;
+    }
 
     if (!serviceSelect.value) {
       showToast("error", "Please select a valid service before booking.");
@@ -151,7 +202,7 @@
       },
       serviceId: serviceSelect.value,
       date: dateInput.value,
-      startTime: document.getElementById("startTime").value
+      startTime: startTimeInput.value
     };
 
     try {
@@ -160,6 +211,7 @@
       await loadSlots();
       form.reset();
       dateInput.value = formatDate(Date.now());
+      startTimeInput.value = "";
     } catch (error) {
       showToast("error", error.message);
     }
