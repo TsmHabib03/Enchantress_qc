@@ -1,0 +1,11 @@
+name = "nail-salon-gateway"
+main = "cloudflare-worker/src/index.js"
+compatibility_date = "2026-04-02"
+
+[vars]
+APP_VERSION = "0.1.0"
+
+# Configure in Cloudflare dashboard as environment variables/secrets:
+# APPS_SCRIPT_URL
+# SHARED_SECRET
+# TURNSTILE_SECRET_KEY (optional)

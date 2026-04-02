@@ -1,0 +1,26 @@
+:root {
+  --booking-bg: linear-gradient(120deg, #f9f6f2 0%, #f0e8df 100%);
+  --admin-bg: linear-gradient(120deg, #eef3f7 0%, #e4edf4 100%);
+  --brand: #2d6a8c;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.booking-bg {
+  background: var(--booking-bg);
+}
+
+.admin-bg {
+  background: var(--admin-bg);
+}
+
+.btn-primary {
+  background-color: var(--brand);
+  border-color: var(--brand);
+}
+
+.list-group-item small {
+  color: #5c6b74;
+}
