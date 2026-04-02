@@ -2,98 +2,118 @@ const limiterStore = new Map();
 
 export default {
   async fetch(request, env, ctx) {
-    if (request.method === "OPTIONS") {
-      return corsResponse(new Response(null, { status: 204 }));
-    }
-
-    const url = new URL(request.url);
-    const path = resolveRoutePath(url.pathname);
-    if (path === "/") {
-      return corsJson(
-        {
-          success: true,
-          data: {
-            message: "Worker is running",
-            hint: "Use /api/health or /health"
-          }
-        },
-        200
-      );
-    }
-    const method = request.method.toUpperCase();
-    const ip = request.headers.get("CF-Connecting-IP") || "0.0.0.0";
-
-    let body = null;
-    if (method !== "GET" && method !== "HEAD") {
-      body = await safeJson(request);
-      if (!body) {
-        return corsJson({ success: false, error: { code: "BAD_REQUEST", message: "Invalid JSON body" } }, 400);
+    try {
+      if (request.method === "OPTIONS") {
+        return corsResponse(new Response(null, { status: 204 }));
       }
-    }
 
-    if (path !== "/health") {
-      const rateKey = await buildRateLimitKey(ip, path, body);
-      const rate = checkRateLimit(rateKey, path.startsWith("/appointments") ? 20 : 60, 60 * 1000);
-      if (!rate.allowed) {
+      const url = new URL(request.url);
+      const path = resolveRoutePath(url.pathname);
+      if (path === "/") {
         return corsJson(
           {
-            success: false,
-            error: {
-              code: "RATE_LIMITED",
-              message: "Too many requests, retry later"
-            },
-            meta: { retryAfterSeconds: rate.retryAfterSeconds }
+            success: true,
+            data: {
+              message: "Worker is running",
+              hint: "Use /api/health or /health"
+            }
           },
-          429
+          200
         );
       }
-    }
+      const method = request.method.toUpperCase();
+      const ip = request.headers.get("CF-Connecting-IP") || "0.0.0.0";
 
-    if (method !== "GET" && method !== "HEAD") {
-      if (path === "/appointments/create") {
-        const turnstileToken = request.headers.get("X-Turnstile-Token");
-        const verified = await verifyTurnstile(turnstileToken, ip, env);
-        if (!verified) {
-          return corsJson({ success: false, error: { code: "BOT_CHECK_FAILED", message: "Challenge failed" } }, 403);
+      let body = null;
+      if (method !== "GET" && method !== "HEAD") {
+        body = await safeJson(request);
+        if (!body) {
+          return corsJson({ success: false, error: { code: "BAD_REQUEST", message: "Invalid JSON body" } }, 400);
         }
       }
-    }
 
-    const query = {};
-    url.searchParams.forEach((value, key) => {
-      query[key] = value;
-    });
-
-    const payload = {
-      method,
-      path,
-      query,
-      body
-    };
-
-    const envelope = await signEnvelope(payload, env.SHARED_SECRET);
-
-    const upstream = await fetch(env.APPS_SCRIPT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-App-Version": env.APP_VERSION || "0.1.0"
-      },
-      body: JSON.stringify(envelope)
-    });
-
-    const text = await upstream.text();
-    return corsResponse(
-      new Response(text, {
-        status: upstream.status,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          "Cache-Control": "no-store",
-          "X-Content-Type-Options": "nosniff",
-          "Referrer-Policy": "no-referrer"
+      if (path !== "/health") {
+        const rateKey = await buildRateLimitKey(ip, path, body);
+        const rate = checkRateLimit(rateKey, path.startsWith("/appointments") ? 20 : 60, 60 * 1000);
+        if (!rate.allowed) {
+          return corsJson(
+            {
+              success: false,
+              error: {
+                code: "RATE_LIMITED",
+                message: "Too many requests, retry later"
+              },
+              meta: { retryAfterSeconds: rate.retryAfterSeconds }
+            },
+            429
+          );
         }
-      })
-    );
+      }
+
+      if (method !== "GET" && method !== "HEAD") {
+        if (path === "/appointments/create") {
+          const turnstileToken = request.headers.get("X-Turnstile-Token");
+          const verified = await verifyTurnstile(turnstileToken, ip, env);
+          if (!verified) {
+            return corsJson({ success: false, error: { code: "BOT_CHECK_FAILED", message: "Challenge failed" } }, 403);
+          }
+        }
+      }
+
+      const query = {};
+      url.searchParams.forEach((value, key) => {
+        query[key] = value;
+      });
+
+      const payload = {
+        method,
+        path,
+        query,
+        body
+      };
+
+      if (!env.SHARED_SECRET) {
+        throw new Error("Missing SHARED_SECRET in Worker secrets");
+      }
+      if (!env.APPS_SCRIPT_URL) {
+        throw new Error("Missing APPS_SCRIPT_URL in Worker variables");
+      }
+
+      const envelope = await signEnvelope(payload, env.SHARED_SECRET);
+
+      const upstream = await fetch(env.APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-App-Version": env.APP_VERSION || "0.1.0"
+        },
+        body: JSON.stringify(envelope)
+      });
+
+      const text = await upstream.text();
+      return corsResponse(
+        new Response(text, {
+          status: upstream.status,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer"
+          }
+        })
+      );
+    } catch (error) {
+      return corsJson(
+        {
+          success: false,
+          error: {
+            code: "WORKER_ERROR",
+            message: error && error.message ? error.message : "Unexpected worker failure"
+          }
+        },
+        500
+      );
+    }
   }
 };
 
