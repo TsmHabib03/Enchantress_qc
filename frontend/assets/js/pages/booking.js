@@ -4,6 +4,18 @@
   var dateInput = document.getElementById("date");
   var slotList = document.getElementById("slot-list");
   var toast = document.getElementById("toast");
+  var categoryButtons = Array.prototype.slice.call(document.querySelectorAll(".service-toggle"));
+  var filterNote = document.getElementById("service-filter-note");
+  var allServices = [];
+  var activeCategory = "softgel";
+
+  var categoryLabels = {
+    softgel: "Softgel Nails",
+    laser: "Laser Hair Removal",
+    skin: "Skin Rejuvenation",
+    hair: "Hair Services",
+    studio: "Self-Shoot Studio"
+  };
 
   function showToast(type, text) {
     toast.className = "alert mt-3";
@@ -15,24 +27,85 @@
     return new Date(date).toISOString().slice(0, 10);
   }
 
-  async function loadServices() {
-    var data = await window.apiClient.get("/services/list");
+  function resolveCategory(service) {
+    var raw = String(service.category || service.name || "").toLowerCase();
+
+    if (raw.indexOf("laser") >= 0 || raw.indexOf("hair removal") >= 0) {
+      return "laser";
+    }
+    if (raw.indexOf("skin") >= 0 || raw.indexOf("facial") >= 0 || raw.indexOf("rejuvenation") >= 0) {
+      return "skin";
+    }
+    if (raw.indexOf("hair") >= 0 || raw.indexOf("styling") >= 0 || raw.indexOf("treatment") >= 0) {
+      return "hair";
+    }
+    if (raw.indexOf("studio") >= 0 || raw.indexOf("self-shoot") >= 0 || raw.indexOf("shoot") >= 0) {
+      return "studio";
+    }
+    if (raw.indexOf("nail") >= 0 || raw.indexOf("manicure") >= 0 || raw.indexOf("pedicure") >= 0 || raw.indexOf("softgel") >= 0) {
+      return "softgel";
+    }
+
+    return "softgel";
+  }
+
+  function filteredServices() {
+    return allServices.filter(function (service) {
+      return service.uiCategory === activeCategory;
+    });
+  }
+
+  function renderServices() {
+    var services = filteredServices();
     serviceSelect.innerHTML = "";
 
-    if (!data.services || data.services.length === 0) {
+    if (services.length === 0) {
       var empty = document.createElement("option");
       empty.value = "";
-      empty.textContent = "No services available";
+      empty.textContent = "No services in this category";
       serviceSelect.appendChild(empty);
+      filterNote.textContent = "No available services under " + categoryLabels[activeCategory] + ".";
+      slotList.innerHTML = "";
       return;
     }
 
-    data.services.forEach(function (service) {
+    services.forEach(function (service) {
       var option = document.createElement("option");
       option.value = service.serviceId;
       option.textContent = service.name + " (" + service.durationMin + " min)";
       serviceSelect.appendChild(option);
     });
+
+    filterNote.textContent = "Showing " + services.length + " service(s) in " + categoryLabels[activeCategory] + ".";
+  }
+
+  function setActiveCategory(category) {
+    activeCategory = category;
+    categoryButtons.forEach(function (button) {
+      var isActive = button.getAttribute("data-category") === category;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  function onCategoryToggle(event) {
+    var button = event.currentTarget;
+    var category = button.getAttribute("data-category");
+    setActiveCategory(category);
+    renderServices();
+    loadSlots();
+  }
+
+  async function loadServices() {
+    var data = await window.apiClient.get("/services/list");
+    var services = data.services || [];
+    allServices = services.map(function (service) {
+      return Object.assign({}, service, {
+        uiCategory: resolveCategory(service)
+      });
+    });
+
+    renderServices();
   }
 
   async function loadSlots() {
@@ -82,8 +155,12 @@
     form.addEventListener("submit", submitBooking);
     dateInput.addEventListener("change", loadSlots);
     serviceSelect.addEventListener("change", loadSlots);
+    categoryButtons.forEach(function (button) {
+      button.addEventListener("click", onCategoryToggle);
+    });
 
     try {
+      setActiveCategory(activeCategory);
       await loadServices();
       await loadSlots();
     } catch (error) {

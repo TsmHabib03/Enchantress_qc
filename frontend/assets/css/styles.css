@@ -24,3 +24,21 @@ body {
 .list-group-item small {
   color: #5c6b74;
 }
+
+.service-toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.service-toggle {
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.service-toggle.active {
+  background-color: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}

@@ -12,12 +12,23 @@
       <section class="card shadow-sm border-0 mb-4">
         <div class="card-body">
           <h1 class="h3 mb-2">Book an Appointment</h1>
-          <p class="text-muted mb-0">Pick a service and preferred time. We will confirm instantly.</p>
+          <p class="text-muted mb-2">Pick a service and preferred time. We will confirm instantly.</p>
+          <p class="mb-0 small text-secondary">Enchantress Beauty Lounge in Quezon City offers comprehensive aesthetic services, specializing in Softgel nail extensions, laser hair removal, and skin rejuvenation treatments. Located on Pasong Tamo and in Culiat, the center also provides professional styling, hair treatments, and an attached self-shoot studio.</p>
         </div>
       </section>
 
       <section class="card shadow-sm border-0 mb-4">
         <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label d-block mb-2">Service category</label>
+            <div id="service-category-toggles" class="service-toggle-group" role="group" aria-label="Service category">
+              <button class="btn btn-outline-secondary service-toggle active" type="button" data-category="softgel">Softgel Nails</button>
+              <button class="btn btn-outline-secondary service-toggle" type="button" data-category="laser">Laser Hair Removal</button>
+              <button class="btn btn-outline-secondary service-toggle" type="button" data-category="skin">Skin Rejuvenation</button>
+              <button class="btn btn-outline-secondary service-toggle" type="button" data-category="hair">Hair Services</button>
+              <button class="btn btn-outline-secondary service-toggle" type="button" data-category="studio">Self-Shoot Studio</button>
+            </div>
+          </div>
           <form id="booking-form" class="row g-3">
             <div class="col-md-6">
               <label class="form-label" for="fullName">Full name</label>
@@ -30,6 +41,7 @@
             <div class="col-md-6">
               <label class="form-label" for="serviceId">Service</label>
               <select class="form-select" id="serviceId" name="serviceId" required></select>
+              <div id="service-filter-note" class="form-text">Showing services in selected category.</div>
             </div>
             <div class="col-md-6">
               <label class="form-label" for="date">Date</label>
