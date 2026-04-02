@@ -7,11 +7,19 @@ export default {
     }
 
     const url = new URL(request.url);
-    if (!url.pathname.startsWith("/api/")) {
-      return corsJson({ success: false, error: { code: "NOT_FOUND", message: "Unknown route" } }, 404);
+    const path = resolveRoutePath(url.pathname);
+    if (path === "/") {
+      return corsJson(
+        {
+          success: true,
+          data: {
+            message: "Worker is running",
+            hint: "Use /api/health or /health"
+          }
+        },
+        200
+      );
     }
-
-    const path = url.pathname.replace("/api", "") || "/";
     const method = request.method.toUpperCase();
     const ip = request.headers.get("CF-Connecting-IP") || "0.0.0.0";
 
@@ -212,4 +220,14 @@ function corsJson(payload, status) {
       headers: { "Content-Type": "application/json; charset=utf-8" }
     })
   );
+}
+
+function resolveRoutePath(pathname) {
+  if (pathname === "/api" || pathname === "/api/") {
+    return "/health";
+  }
+  if (pathname.startsWith("/api/")) {
+    return pathname.replace("/api", "") || "/";
+  }
+  return pathname || "/";
 }
