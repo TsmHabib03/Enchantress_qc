@@ -7,9 +7,10 @@
   var categoryButtons = Array.prototype.slice.call(document.querySelectorAll(".service-toggle"));
   var filterNote = document.getElementById("service-filter-note");
   var allServices = [];
-  var activeCategory = "softgel";
+  var activeCategory = "all";
 
   var categoryLabels = {
+    all: "All Services",
     softgel: "Softgel Nails",
     laser: "Laser Hair Removal",
     skin: "Skin Rejuvenation",
@@ -50,6 +51,10 @@
   }
 
   function filteredServices() {
+    if (activeCategory === "all") {
+      return allServices.slice();
+    }
+
     return allServices.filter(function (service) {
       return service.uiCategory === activeCategory;
     });
@@ -59,12 +64,17 @@
     var services = filteredServices();
     serviceSelect.innerHTML = "";
 
+    if (services.length === 0 && activeCategory !== "all") {
+      setActiveCategory("all");
+      services = filteredServices();
+    }
+
     if (services.length === 0) {
       var empty = document.createElement("option");
       empty.value = "";
       empty.textContent = "No services in this category";
       serviceSelect.appendChild(empty);
-      filterNote.textContent = "No available services under " + categoryLabels[activeCategory] + ".";
+      filterNote.textContent = "No services are configured yet. Please add services first.";
       slotList.innerHTML = "";
       return;
     }
@@ -128,6 +138,11 @@
 
   async function submitBooking(event) {
     event.preventDefault();
+
+    if (!serviceSelect.value) {
+      showToast("error", "Please select a valid service before booking.");
+      return;
+    }
 
     var payload = {
       customer: {
