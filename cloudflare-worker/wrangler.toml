@@ -5,7 +5,7 @@ compatibility_date = "2026-04-02"
 [vars]
 APP_VERSION = "0.1.0"
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyQG58Eae7sfd2fAa_1qbqMqPrUe920fX2ockG5nP1wvSm7-V_aHPn_8AssZ35WgkOC/exec"
-# FRONTEND_URL = "https://your-project.pages.dev"
+# FRONTEND_URL = "https://enchantress-qc.jaudianhabib879.workers.dev/"
 
 # Configure through dashboard or wrangler secret:
 # APPS_SCRIPT_URL
