@@ -4,73 +4,113 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Nail Salon Booking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="assets/css/styles.css" rel="stylesheet" />
   </head>
   <body class="booking-bg">
-    <main class="container py-4">
-      <section class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-          <h1 class="h3 mb-2">Book an Appointment</h1>
-          <p class="text-muted mb-2">Pick a service and preferred time. We will confirm instantly.</p>
-          <p class="mb-0 small text-secondary">Enchantress Beauty Lounge in Quezon City offers comprehensive aesthetic services, specializing in Softgel nail extensions, laser hair removal, and skin rejuvenation treatments. Located on Pasong Tamo and in Culiat, the center also provides professional styling, hair treatments, and an attached self-shoot studio.</p>
+    <main class="container booking-shell py-4 py-lg-5">
+      <section class="hero-card mb-4 mb-lg-5">
+        <div class="hero-topbar mb-3">
+          <div class="hero-chip">Enchantress Beauty Lounge</div>
+          <div class="logo-placer" aria-label="Enchantress logo">
+            <img class="logo-image" src="assets/enchantress_logo.jpg" alt="Enchantress Beauty Lounge logo" />
+          </div>
         </div>
+        <h1 class="hero-title mb-2">Book Your Glow-Up Session</h1>
+        <p class="hero-subtitle mb-0">Softgel nails, skin and laser care, hair styling, and self-shoot studio sessions in Quezon City.</p>
       </section>
 
-      <section class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-          <div class="mb-3">
-            <label class="form-label d-block mb-2">Service category</label>
-            <div id="service-category-toggles" class="service-toggle-group" role="group" aria-label="Service category">
-              <button class="btn btn-outline-secondary service-toggle active" type="button" data-category="all">All Services</button>
-              <button class="btn btn-outline-secondary service-toggle" type="button" data-category="softgel">Softgel Nails</button>
-              <button class="btn btn-outline-secondary service-toggle" type="button" data-category="laser">Laser Hair Removal</button>
-              <button class="btn btn-outline-secondary service-toggle" type="button" data-category="skin">Skin Rejuvenation</button>
-              <button class="btn btn-outline-secondary service-toggle" type="button" data-category="hair">Hair Services</button>
-              <button class="btn btn-outline-secondary service-toggle" type="button" data-category="studio">Self-Shoot Studio</button>
+      <section class="row g-4 align-items-start">
+        <div class="col-lg-8">
+          <div class="card booking-card border-0">
+            <div class="card-body p-4 p-lg-5">
+              <h2 class="section-title mb-3">Appointment Details</h2>
+
+              <div class="mb-4">
+                <label class="form-label d-block mb-2">Service category</label>
+                <div id="service-category-toggles" class="service-toggle-group" role="group" aria-label="Service category">
+                  <button class="btn btn-outline-secondary service-toggle active" type="button" data-category="all">All Services</button>
+                  <button class="btn btn-outline-secondary service-toggle" type="button" data-category="softgel">Softgel Nails</button>
+                  <button class="btn btn-outline-secondary service-toggle" type="button" data-category="laser">Laser Hair Removal</button>
+                  <button class="btn btn-outline-secondary service-toggle" type="button" data-category="skin">Skin Rejuvenation</button>
+                  <button class="btn btn-outline-secondary service-toggle" type="button" data-category="hair">Hair Services</button>
+                  <button class="btn btn-outline-secondary service-toggle" type="button" data-category="studio">Self-Shoot Studio</button>
+                </div>
+              </div>
+
+              <form id="booking-form" class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label" for="fullName">Full name</label>
+                  <input class="form-control" id="fullName" name="fullName" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="phone">Phone</label>
+                  <input class="form-control" id="phone" name="phone" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="email">Email</label>
+                  <input class="form-control" id="email" name="email" type="email" placeholder="name@example.com" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="serviceId">Service</label>
+                  <select class="form-select" id="serviceId" name="serviceId" required></select>
+                  <div id="service-filter-note" class="form-text">Showing services in selected category.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="date">Date</label>
+                  <input class="form-control" type="date" id="date" name="date" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="startTime">Start time</label>
+                  <input class="form-control" type="time" id="startTime" name="startTime" required />
+                </div>
+                <div class="col-12 pt-2">
+                  <button class="btn btn-primary cta-button" type="submit">Confirm Booking</button>
+                </div>
+              </form>
             </div>
           </div>
-          <form id="booking-form" class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label" for="fullName">Full name</label>
-              <input class="form-control" id="fullName" name="fullName" required />
+        </div>
+
+        <div class="col-lg-4">
+          <aside class="card info-card border-0 mb-4">
+            <div class="card-body p-4">
+              <h2 class="h5 mb-3">Why Guests Love Us</h2>
+              <ul class="feature-list mb-0">
+                <li>Expert softgel and detailed nail artistry</li>
+                <li>Professional laser and skin rejuvenation care</li>
+                <li>Clean, premium lounge at Pasong Tamo and Culiat</li>
+              </ul>
+
+              <div class="address-card mt-4">
+                <p class="address-label mb-1">Address</p>
+                <p class="address-value mb-0">Aramis Street Pasong Tamo, Quezon City, Philippines, 1107</p>
+              </div>
             </div>
-            <div class="col-md-6">
-              <label class="form-label" for="phone">Phone</label>
-              <input class="form-control" id="phone" name="phone" required />
+          </aside>
+          <section class="card slots-card border-0">
+            <div class="card-body p-4">
+              <h2 class="h5 mb-3">Available Slots</h2>
+              <div class="slot-toolbar mb-3">
+                <p id="slot-summary" class="slot-summary mb-2">Select a service and date to see open times.</p>
+                <div class="slot-toolbar-actions">
+                  <button id="slot-expand-btn" type="button" class="btn btn-sm btn-outline-secondary">Show more</button>
+                  <button id="slot-busy-toggle" type="button" class="btn btn-sm btn-outline-secondary">Include busy</button>
+                </div>
+              </div>
+              <ul id="slot-list" class="slot-grid" aria-live="polite"></ul>
             </div>
-            <div class="col-md-6">
-              <label class="form-label" for="email">Email</label>
-              <input class="form-control" id="email" name="email" type="email" placeholder="name@example.com" />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="serviceId">Service</label>
-              <select class="form-select" id="serviceId" name="serviceId" required></select>
-              <div id="service-filter-note" class="form-text">Showing services in selected category.</div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="date">Date</label>
-              <input class="form-control" type="date" id="date" name="date" required />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="startTime">Start time</label>
-              <input class="form-control" type="time" id="startTime" name="startTime" required />
-            </div>
-            <div class="col-12">
-              <button class="btn btn-primary" type="submit">Confirm Booking</button>
-            </div>
-          </form>
+          </section>
         </div>
       </section>
 
-      <section class="card shadow-sm border-0">
-        <div class="card-body">
-          <h2 class="h5">Available Slots</h2>
-          <ul id="slot-list" class="list-group list-group-flush"></ul>
-        </div>
-      </section>
-
-      <div id="toast" class="alert mt-3 d-none" role="alert"></div>
+      <div id="toast" class="alert mt-4 d-none" role="alert"></div>
     </main>
 
     <script src="assets/js/config.js"></script>

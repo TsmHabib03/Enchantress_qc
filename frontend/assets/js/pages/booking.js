@@ -9,11 +9,17 @@
   var submitButton = form.querySelector("button[type='submit']");
   var categoryButtons = Array.prototype.slice.call(document.querySelectorAll(".service-toggle"));
   var filterNote = document.getElementById("service-filter-note");
+  var slotSummary = document.getElementById("slot-summary");
+  var slotExpandBtn = document.getElementById("slot-expand-btn");
+  var slotBusyToggle = document.getElementById("slot-busy-toggle");
   var allServices = [];
   var activeCategory = "all";
   var slotsCache = {};
   var slotsDebounceTimer = null;
   var isSubmitting = false;
+  var showAllSlots = false;
+  var includeBusySlots = false;
+  var lastRenderedSlots = [];
 
   var categoryLabels = {
     all: "All Services",
@@ -44,13 +50,52 @@
     submitButton.textContent = isBusy ? "Confirming..." : "Confirm Booking";
   }
 
+  function updateSlotToolbar(total, availableCount, busyCount, displayedCount) {
+    if (!slotSummary || !slotExpandBtn || !slotBusyToggle) {
+      return;
+    }
+
+    if (!total) {
+      slotSummary.textContent = "No slots found for this date.";
+      slotExpandBtn.classList.add("d-none");
+      slotBusyToggle.classList.add("d-none");
+      return;
+    }
+
+    slotSummary.textContent =
+      availableCount +
+      " available" +
+      (busyCount ? " | " + busyCount + " busy" : "") +
+      " | showing " +
+      displayedCount +
+      "/" +
+      (includeBusySlots ? total : availableCount);
+
+    var canExpand = displayedCount < (includeBusySlots ? total : availableCount);
+    var showExpandControl = showAllSlots || canExpand;
+    slotExpandBtn.classList.toggle("d-none", !showExpandControl);
+    slotExpandBtn.textContent = showAllSlots ? "Show less" : "Show more";
+    slotBusyToggle.classList.remove("d-none");
+    slotBusyToggle.textContent = includeBusySlots ? "Hide busy" : "Include busy";
+  }
+
   function renderSlots(slots) {
+    lastRenderedSlots = slots.slice();
     slotList.innerHTML = "";
     var firstAvailable = null;
+    var availableSlots = slots.filter(function (slot) {
+      return slot.available;
+    });
+    var busySlots = slots.filter(function (slot) {
+      return !slot.available;
+    });
 
-    slots.forEach(function (slot) {
+    var slotsToShow = includeBusySlots ? slots.slice() : availableSlots.slice();
+    var visibleSlots = showAllSlots ? slotsToShow : slotsToShow.slice(0, 8);
+
+    visibleSlots.forEach(function (slot) {
       var item = document.createElement("li");
-      item.className = "list-group-item";
+      item.className = "slot-item";
       if (slot.available) {
         if (!firstAvailable) {
           firstAvailable = slot.startTime;
@@ -62,17 +107,19 @@
           slot.startTime +
           "</button> <small>available</small>";
       } else {
-        item.innerHTML = "<strong>" + slot.startTime + "</strong> <small>busy</small>";
+        item.innerHTML = "<span class='slot-pill slot-pill-busy'>" + slot.startTime + "</span>";
       }
       slotList.appendChild(item);
     });
 
-    if (slots.length === 0) {
+    if (slotsToShow.length === 0) {
       var emptyItem = document.createElement("li");
-      emptyItem.className = "list-group-item";
-      emptyItem.textContent = "No slots available for the selected date.";
+      emptyItem.className = "slot-empty";
+      emptyItem.textContent = "No open slots for this date. Try another day or include busy slots.";
       slotList.appendChild(emptyItem);
     }
+
+    updateSlotToolbar(slots.length, availableSlots.length, busySlots.length, visibleSlots.length);
 
     var slotButtons = Array.prototype.slice.call(slotList.querySelectorAll(".slot-select"));
     slotButtons.forEach(function (btn) {
@@ -185,8 +232,19 @@
   async function loadSlots() {
     if (!serviceSelect.value || !dateInput.value) {
       slotList.innerHTML = "";
+      if (slotSummary) {
+        slotSummary.textContent = "Select a service and date to see open times.";
+      }
+      if (slotExpandBtn) {
+        slotExpandBtn.classList.add("d-none");
+      }
+      if (slotBusyToggle) {
+        slotBusyToggle.classList.add("d-none");
+      }
       return;
     }
+
+    showAllSlots = false;
 
     var cacheKey = serviceSelect.value + "|" + dateInput.value;
     if (slotsCache[cacheKey]) {
@@ -272,6 +330,19 @@
     categoryButtons.forEach(function (button) {
       button.addEventListener("click", onCategoryToggle);
     });
+    if (slotExpandBtn) {
+      slotExpandBtn.addEventListener("click", function () {
+        showAllSlots = !showAllSlots;
+        renderSlots(lastRenderedSlots);
+      });
+    }
+    if (slotBusyToggle) {
+      slotBusyToggle.addEventListener("click", function () {
+        includeBusySlots = !includeBusySlots;
+        showAllSlots = false;
+        renderSlots(lastRenderedSlots);
+      });
+    }
 
     try {
       setActiveCategory(activeCategory);
