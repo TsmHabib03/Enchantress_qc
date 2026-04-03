@@ -10,6 +10,10 @@ export default {
       const url = new URL(request.url);
       const path = resolveRoutePath(url.pathname);
       if (path === "/") {
+        if (env.FRONTEND_URL) {
+          return Response.redirect(env.FRONTEND_URL, 302);
+        }
+
         return corsJson(
           {
             success: true,
