@@ -10,8 +10,9 @@ export default {
       const url = new URL(request.url);
       const path = resolveRoutePath(url.pathname);
       if (path === "/") {
-        if (env.FRONTEND_URL) {
-          return Response.redirect(env.FRONTEND_URL, 302);
+        const frontendRedirect = getFrontendRedirectTarget(env.FRONTEND_URL, url);
+        if (frontendRedirect) {
+          return Response.redirect(frontendRedirect, 302);
         }
 
         return corsJson(
@@ -74,7 +75,10 @@ export default {
         method,
         path,
         query,
-        body
+        body,
+        headers: {
+          Authorization: request.headers.get("Authorization") || ""
+        }
       };
 
       if (!env.SHARED_SECRET) {
@@ -233,7 +237,7 @@ async function safeJson(request) {
 
 function corsResponse(response) {
   response.headers.set("Access-Control-Allow-Origin", "*");
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type, X-App-Version, X-Turnstile-Token");
+  response.headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-App-Version, X-Turnstile-Token");
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   return response;
 }
@@ -265,4 +269,20 @@ function getRatePolicy(path, method) {
     return { maxRequests: 120, windowMs: 60 * 1000 };
   }
   return { maxRequests: 60, windowMs: 60 * 1000 };
+}
+
+function getFrontendRedirectTarget(frontendUrl, requestUrl) {
+  if (!frontendUrl) {
+    return null;
+  }
+
+  try {
+    const target = new URL(frontendUrl);
+    if (target.origin === requestUrl.origin && target.pathname === requestUrl.pathname) {
+      return null;
+    }
+    return target.toString();
+  } catch (error) {
+    return null;
+  }
 }

@@ -15,22 +15,190 @@
   </head>
   <body class="booking-bg">
     <main class="container booking-shell py-4 py-lg-5">
-      <section class="hero-card mb-4 mb-lg-5">
+      <section class="hero-card hero-landing mb-4 mb-lg-5">
+        <header class="hero-nav-shell mb-4">
+          <div class="hero-brand-mark" aria-label="Enchantress brand">
+            <span class="hero-brand-dot"></span>
+            <div>
+              <p class="hero-brand-name mb-0">Enchantress Beauty Lounge</p>
+              <p class="hero-brand-meta mb-0">Health and Beauty Clinic</p>
+            </div>
+          </div>
+
+          <nav class="hero-nav-links" aria-label="Primary navigation">
+            <a class="hero-nav-link" href="#services-menu">Services</a>
+            <a class="hero-nav-link" href="#offer-explorer">Offers</a>
+            <a class="hero-nav-link" href="#booking-panel">Book</a>
+            <a class="hero-nav-link" href="#contact-footer">Contact</a>
+          </nav>
+
+          <div class="hero-nav-cta">
+            <a class="btn hero-nav-book" href="#booking-panel">Book Now</a>
+            <button id="open-auth-modal" class="btn hero-nav-login" type="button">Login</button>
+          </div>
+        </header>
+
         <div class="hero-topbar mb-3">
-          <div class="hero-chip">Enchantress Beauty Lounge</div>
+          <div class="hero-chip">D' Enchantress Aesthetic and Wellness Center</div>
           <div class="logo-placer" aria-label="Enchantress logo">
             <img class="logo-image" src="assets/enchantress_logo.jpg" alt="Enchantress Beauty Lounge logo" />
           </div>
         </div>
-        <h1 class="hero-title mb-2">Book Your Glow-Up Session</h1>
-        <p class="hero-subtitle mb-0">Softgel nails, skin and laser care, hair styling, and self-shoot studio sessions in Quezon City.</p>
+        <h1 class="hero-title mb-2">Enchantress Beauty Lounge</h1>
+        <p class="hero-subtitle mb-3">Elegant nail care, advanced aesthetic treatments, premium hair services, and professional beauty sessions in Quezon City.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary cta-button" href="#booking-panel">Book Appointment</a>
+          <a class="btn btn-outline-secondary hero-login-btn" href="#offer-explorer">Browse Offers</a>
+        </div>
+        <div id="auth-status" class="auth-status-note mt-3 d-none" aria-live="polite"></div>
       </section>
 
-      <section class="row g-4 align-items-start">
+      <section id="role-command-center" class="glass-section role-center-section mb-4 mb-lg-5">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <h2 class="section-title mb-0">Role Command Center</h2>
+          <span class="glass-pill">Role Aware Frontend</span>
+        </div>
+        <p id="role-center-note" class="role-center-note mb-3">Sign in to unlock your role panel. Staff and admin actions are visible now and will be connected in the backend phase.</p>
+        <div class="role-panel-grid">
+          <article class="role-panel-card d-none" data-role-panel="CUSTOMER">
+            <p class="role-panel-chip">Customer</p>
+            <h3 class="role-panel-title">My Booking Space</h3>
+            <p class="role-panel-text mb-2">You can browse all services and confirm appointments once logged in.</p>
+            <ul class="role-panel-list">
+              <li>Appointment history (coming soon)</li>
+              <li>Reschedule and cancellation controls (coming soon)</li>
+            </ul>
+          </article>
+          <article class="role-panel-card d-none" data-role-panel="STAFF">
+            <p class="role-panel-chip">Staff</p>
+            <h3 class="role-panel-title">Session Workflow</h3>
+            <p class="role-panel-text mb-2">Manage your personal schedule and session progression.</p>
+            <ul class="role-panel-list">
+              <li>Start appointment session (backend pending)</li>
+              <li>Complete appointment and save session notes (backend pending)</li>
+            </ul>
+          </article>
+          <article class="role-panel-card d-none" data-role-panel="ADMIN">
+            <p class="role-panel-chip">Admin</p>
+            <h3 class="role-panel-title">Branch Operations</h3>
+            <p class="role-panel-text mb-2">Administrative capabilities are presented now and will be wired in backend phase.</p>
+            <ul class="role-panel-list">
+              <li>Promo pricing and schedule updates (backend pending)</li>
+              <li>Master customer access and transaction void or delete authority (backend pending)</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="services-menu" class="glass-section services-menu-section mb-4 mb-lg-5">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <h2 class="section-title mb-0">Services Menu</h2>
+          <span class="glass-pill">Visual Service Guide</span>
+        </div>
+        <p class="services-intro mb-3">Discover signature treatments and beauty essentials through visual cards designed for quick browsing.</p>
+        <div class="service-bento-grid">
+          <article class="service-bento-card">
+            <img class="service-bento-image" src="assets/images/nail-feed/nail-offer-01-C7s8EAdicSH.jpg" alt="Nail services sample work" loading="lazy" />
+            <h3 class="service-bento-title">Nail Services</h3>
+            <ul class="service-bento-list">
+              <li>Manicure</li>
+              <li>Pedicure</li>
+              <li>Softgel Nail Extensions</li>
+              <li>Polygel</li>
+              <li>Gel Manicure / Gel Polish</li>
+              <li>Nail Art</li>
+            </ul>
+          </article>
+          <article class="service-bento-card">
+            <img class="service-bento-image" src="assets/images/nail-feed/nail-offer-02-C7qXQ7jtM2C.jpg" alt="Hair color and botox offer poster" loading="lazy" />
+            <h3 class="service-bento-title">Hair Services</h3>
+            <ul class="service-bento-list">
+              <li>Hair Color</li>
+              <li>Botox Brazilian Treatment</li>
+              <li>Balayage (Highlights)</li>
+              <li>General Hair Treatments</li>
+            </ul>
+          </article>
+          <article class="service-bento-card">
+            <img class="service-bento-image" src="assets/images/nail-feed/nail-offer-03-C7nyW2iqd2-.jpg" alt="Aesthetic and wellness treatment poster" loading="lazy" />
+            <h3 class="service-bento-title">Aesthetics & Wellness</h3>
+            <ul class="service-bento-list">
+              <li>Hand/Foot Spa</li>
+              <li>Diode Hair Removal</li>
+              <li>Carbon Laser</li>
+              <li>Whitening Laser</li>
+              <li>RF Slimming</li>
+              <li>Facial</li>
+              <li>Gluta Drip</li>
+              <li>Mesolipo</li>
+              <li>Barbie Arms</li>
+            </ul>
+          </article>
+          <article class="service-bento-card">
+            <img class="service-bento-image" src="assets/images/nail-feed/nail-offer-04-C7lNkg3qRtV.jpg" alt="Beauty lounge premium services poster" loading="lazy" />
+            <h3 class="service-bento-title">Lash & Makeup</h3>
+            <ul class="service-bento-list">
+              <li>Eyelash Extensions</li>
+              <li>Hair & Makeup (Culiat Branch only)</li>
+              <li>Wedding Makeup</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="glass-section promos-section mb-4 mb-lg-5">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <h2 class="section-title mb-0">Current Promos</h2>
+          <span class="glass-pill">Limited Time Offers</span>
+        </div>
+        <div class="promo-grid">
+          <article class="promo-card">
+            <p class="promo-badge">Promo</p>
+            <h3 class="promo-title mb-2">Php 999 Softgel Extensions with Nail Art</h3>
+            <p class="promo-text mb-0">Get premium extension styling plus detailed nail art in one special package.</p>
+          </article>
+          <article class="promo-card">
+            <p class="promo-badge">Promo</p>
+            <h3 class="promo-title mb-2">Php 999 Hair Color + Botox Brazilian Treatment</h3>
+            <p class="promo-text mb-0">Complete hair refresh and repair treatment at a salon-favorite price.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="offer-explorer" class="glass-section highlights-section mb-4 mb-lg-5">
+        <div class="offer-explorer-top mb-3">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h2 class="section-title mb-0">Offer Explorer</h2>
+            <span class="glass-pill">Scroll to Browse</span>
+          </div>
+          <div class="offer-filter-bar" role="tablist" aria-label="Offer category filters">
+            <button class="offer-filter-btn active" data-filter="all" type="button">All</button>
+            <button class="offer-filter-btn" data-filter="nails" type="button">Nails</button>
+            <button class="offer-filter-btn" data-filter="latest" type="button">Latest</button>
+          </div>
+          <div class="offer-rail-actions mt-2" aria-label="Offer navigation controls">
+            <button id="offer-prev" class="offer-rail-btn" type="button" aria-label="View previous offers">Previous</button>
+            <button id="offer-next" class="offer-rail-btn" type="button" aria-label="View next offers">Next</button>
+          </div>
+        </div>
+        <p class="highlight-note mb-2">Browse the latest nail service visuals from Enchantress. All images in this section are from your new curated list.</p>
+        <p id="offer-count" class="offer-count mb-3" aria-live="polite"></p>
+        <div id="offer-rail" class="highlight-rail" role="region" aria-label="Service and promo image gallery"></div>
+      </section>
+
+      <section id="booking-panel" class="row g-4 align-items-start">
         <div class="col-lg-8">
           <div class="card booking-card border-0">
             <div class="card-body p-4 p-lg-5">
               <h2 class="section-title mb-3">Appointment Details</h2>
+              <p class="booking-gate-note mb-3">For account protection, Appointment Details are visible only for logged-in users.</p>
+
+              <div id="booking-auth-guest-panel" class="booking-auth-panel d-none" role="status" aria-live="polite">
+                <p class="booking-auth-panel-text mb-3">Please login or register first to unlock the Appointment Details form and available slots.</p>
+                <button id="open-auth-from-booking" class="btn btn-primary" type="button">Login or Register to Continue</button>
+              </div>
+
+              <div id="booking-auth-content">
 
               <div class="mb-4">
                 <label class="form-label d-block mb-2">Service category</label>
@@ -55,7 +223,7 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label" for="email">Email</label>
-                  <input class="form-control" id="email" name="email" type="email" placeholder="name@example.com" />
+                  <input class="form-control" id="email" name="email" type="email" placeholder="name@example.com" required />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label" for="serviceId">Service</label>
@@ -70,10 +238,17 @@
                   <label class="form-label" for="startTime">Start time</label>
                   <input class="form-control" type="time" id="startTime" name="startTime" required />
                 </div>
+                <div class="booking-honeypot" aria-hidden="true">
+                  <label for="company">Company</label>
+                  <input id="company" name="company" type="text" tabindex="-1" autocomplete="off" />
+                </div>
+                <input id="challengeToken" name="challengeToken" type="hidden" />
+                <div id="booking-protection-status" class="form-text">Security policy is active: account gate, cooldown, duplicate guard, and anti-bot checks.</div>
                 <div class="col-12 pt-2">
                   <button class="btn btn-primary cta-button" type="submit">Confirm Booking</button>
                 </div>
               </form>
+              </div>
             </div>
           </div>
         </div>
@@ -83,20 +258,24 @@
             <div class="card-body p-4">
               <h2 class="h5 mb-3">Why Guests Love Us</h2>
               <ul class="feature-list mb-0">
-                <li>Expert softgel and detailed nail artistry</li>
-                <li>Professional laser and skin rejuvenation care</li>
-                <li>Clean, premium lounge at Pasong Tamo and Culiat</li>
+                <li>High-detail nail artistry and extension design</li>
+                <li>Advanced aesthetics and wellness treatment menu</li>
+                <li>Trusted beauty team for events and everyday care</li>
               </ul>
 
               <div class="address-card mt-4">
                 <p class="address-label mb-1">Address</p>
-                <p class="address-value mb-0">Aramis Street Pasong Tamo, Quezon City, Philippines, 1107</p>
+                <p class="address-value mb-0">7 Aramis Street, Pasong Tamo, Quezon City</p>
               </div>
             </div>
           </aside>
           <section class="card slots-card border-0">
             <div class="card-body p-4">
               <h2 class="h5 mb-3">Available Slots</h2>
+              <div id="slots-auth-guest-panel" class="booking-auth-panel d-none" role="status" aria-live="polite">
+                <p class="booking-auth-panel-text mb-0">Login required to view available time slots.</p>
+              </div>
+              <div id="slots-auth-content">
               <div class="slot-toolbar mb-3">
                 <p id="slot-summary" class="slot-summary mb-2">Select a service and date to see open times.</p>
                 <div class="slot-toolbar-actions">
@@ -105,16 +284,88 @@
                 </div>
               </div>
               <ul id="slot-list" class="slot-grid" aria-live="polite"></ul>
+              </div>
             </div>
           </section>
         </div>
       </section>
 
       <div id="toast" class="alert mt-4 d-none" role="alert"></div>
+
+      <div id="confirmation-modal" class="confirmation-modal d-none" role="dialog" aria-modal="true">
+        <div class="confirmation-modal-backdrop"></div>
+        <div class="confirmation-modal-content">
+          <span class="confirmation-checkmark">✓</span>
+          <h2 class="confirmation-title">Booking Confirmed!</h2>
+          <p class="confirmation-subtitle">Your appointment has been successfully scheduled.</p>
+          <div class="confirmation-ref-box">
+            <p class="confirmation-ref-label">Booking Reference</p>
+            <p class="confirmation-ref-value" id="confirmation-ref">APT_0000000000</p>
+          </div>
+          <button class="btn btn-primary confirmation-close-btn" type="button">Continue Booking</button>
+        </div>
+      </div>
+
+      <div id="auth-modal" class="auth-modal d-none" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <div class="auth-modal-backdrop"></div>
+        <div class="auth-modal-content">
+          <button id="auth-close" class="auth-close-btn" type="button" aria-label="Close login dialog">x</button>
+          <h2 id="auth-title" class="section-title mb-2">Account Access</h2>
+          <p class="auth-subtitle">Login for staff/admin dashboard access or register as customer.</p>
+
+          <div class="auth-tab-group" role="tablist" aria-label="Authentication tabs">
+            <button class="auth-tab active" data-auth-tab="login" type="button">Login</button>
+            <button class="auth-tab" data-auth-tab="register" type="button">Register</button>
+          </div>
+
+          <form id="login-form" class="auth-form" novalidate>
+            <div class="mb-3">
+              <label class="form-label" for="loginEmail">Email</label>
+              <input id="loginEmail" name="email" type="email" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="loginPassword">Password</label>
+              <input id="loginPassword" name="password" type="password" class="form-control" minlength="8" required />
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Login</button>
+          </form>
+
+          <form id="register-form" class="auth-form d-none" novalidate>
+            <div class="mb-3">
+              <label class="form-label" for="registerName">Full Name</label>
+              <input id="registerName" name="fullName" type="text" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="registerPhone">Phone</label>
+              <input id="registerPhone" name="phone" type="text" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="registerEmail">Email</label>
+              <input id="registerEmail" name="email" type="email" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="registerPassword">Password</label>
+              <input id="registerPassword" name="password" type="password" class="form-control" minlength="8" required />
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Create Account</button>
+          </form>
+
+          <div id="auth-toast" class="alert mt-3 d-none" role="alert"></div>
+        </div>
+      </div>
+
+      <footer id="contact-footer" class="glass-section site-footer mt-4">
+        <h2 class="h5 mb-2">Visit and Contact</h2>
+        <p class="mb-1">7 Aramis Street, Pasong Tamo, Quezon City</p>
+        <p class="mb-1">Phone: 09171779627 / 63270914114</p>
+        <p class="mb-0">Email: denchantress2022@gmail.com</p>
+      </footer>
     </main>
 
     <script src="assets/js/config.js"></script>
     <script src="assets/js/api-client.js"></script>
     <script src="assets/js/pages/booking.js"></script>
+    <script src="assets/js/pages/auth.js"></script>
+    <script src="assets/js/pages/offers-browser.js"></script>
   </body>
 </html>

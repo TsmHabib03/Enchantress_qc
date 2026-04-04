@@ -8,6 +8,18 @@ function routeGatewayEnvelope_(e) {
     var query = envelope.query || {};
     var body = envelope.body || {};
 
+    function optionalSession() {
+      try {
+        return getCurrentSession_(envelope);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function requiredSession() {
+      return requireAuthenticatedSession_(envelope);
+    }
+
     if (path === "/health") {
       return jsonSuccess_({ status: "ok", version: APP_VERSION });
     }
@@ -22,7 +34,15 @@ function routeGatewayEnvelope_(e) {
       return jsonSuccess_({ services: listActiveServices_() });
     }
 
+    if (path === "/services/upsert" && method === "POST") {
+      var svcSession = requiredSession();
+      return jsonSuccess_(upsertServiceAsAdmin_(body, svcSession));
+    }
+
     if (path === "/appointments/slots" && method === "GET") {
+      if (isRbacEnabled_()) {
+        requiredSession();
+      }
       var serviceId = query.serviceId;
       var date = query.date;
       var slots = listAvailableSlots_(serviceId, date);
@@ -30,18 +50,44 @@ function routeGatewayEnvelope_(e) {
     }
 
     if (path === "/appointments/create" && method === "POST") {
-      var appointment = createAppointmentWithCustomer_(body);
+      var createSession = optionalSession();
+      var appointment = createAppointmentWithCustomerForSession_(body, createSession);
       return jsonSuccess_(appointment);
+    }
+
+    if (path === "/auth/register" && method === "POST") {
+      return jsonSuccess_(registerUser_(body));
+    }
+
+    if (path === "/auth/login" && method === "POST") {
+      return jsonSuccess_(loginUser_(body));
     }
 
     if (path === "/appointments/list" && method === "GET") {
       var dateFilter = query.date;
-      return jsonSuccess_({ appointments: listAppointmentsByDate_(dateFilter) });
+      var listSession = isRbacEnabled_() ? requiredSession() : optionalSession();
+      return jsonSuccess_({ appointments: listAppointmentsByDate_(dateFilter, listSession) });
+    }
+
+    if (path === "/appointments/status/update" && method === "POST") {
+      var statusSession = requiredSession();
+      return jsonSuccess_(updateAppointmentStatus_(body, statusSession));
+    }
+
+    if (path === "/appointments/assign-staff" && method === "POST") {
+      var assignSession = requiredSession();
+      return jsonSuccess_(assignAppointmentStaffAsAdmin_(body, assignSession));
+    }
+
+    if (path === "/customers/list" && method === "GET") {
+      var customersSession = requiredSession();
+      return jsonSuccess_({ customers: listCustomersForAdmin_(customersSession) });
     }
 
     if (path === "/reports/summary" && method === "GET") {
       var reportDate = query.date;
-      return jsonSuccess_(getDailySummary_(reportDate));
+      var reportSession = optionalSession();
+      return jsonSuccess_(getDailySummary_(reportDate, reportSession));
     }
 
     return jsonError_(404, "NOT_FOUND", "Route not found: " + path);
@@ -50,8 +96,42 @@ function routeGatewayEnvelope_(e) {
       message: error.message,
       stack: error.stack
     });
-    return jsonError_(500, "INTERNAL_ERROR", error.message || "Unexpected error");
+    return jsonError_(mapErrorToStatus_(error), mapErrorToCode_(error), error.message || "Unexpected error");
   }
+}
+
+function mapErrorToStatus_(error) {
+  var message = String((error && error.message) || "").toLowerCase();
+  if (message.indexOf("authentication required") >= 0 || message.indexOf("session") >= 0 || message.indexOf("token") >= 0) {
+    return 401;
+  }
+  if (message.indexOf("permission") >= 0 || message.indexOf("outside your access scope") >= 0) {
+    return 403;
+  }
+  if (message.indexOf("missing required field") >= 0 || message.indexOf("invalid") >= 0) {
+    return 400;
+  }
+  if (message.indexOf("not found") >= 0) {
+    return 404;
+  }
+  return 500;
+}
+
+function mapErrorToCode_(error) {
+  var status = mapErrorToStatus_(error);
+  if (status === 400) {
+    return "BAD_REQUEST";
+  }
+  if (status === 401) {
+    return "UNAUTHORIZED";
+  }
+  if (status === 403) {
+    return "FORBIDDEN";
+  }
+  if (status === 404) {
+    return "NOT_FOUND";
+  }
+  return "INTERNAL_ERROR";
 }
 
 function normalizePath_(path) {

@@ -3,6 +3,51 @@ function getSpreadsheet_() {
   return SpreadsheetApp.openById(id);
 }
 
+var dateTimezoneCache_ = null;
+
+function getDateTimezone_() {
+  if (dateTimezoneCache_) {
+    return dateTimezoneCache_;
+  }
+
+  try {
+    dateTimezoneCache_ = getSpreadsheet_().getSpreadsheetTimeZone() || "Asia/Manila";
+  } catch (error) {
+    dateTimezoneCache_ = "Asia/Manila";
+  }
+
+  return dateTimezoneCache_;
+}
+
+function normalizeDateValue_(value) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  if (Object.prototype.toString.call(value) === "[object Date]" && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, getDateTimezone_(), "yyyy-MM-dd");
+  }
+
+  var text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text;
+  }
+
+  var parsed = new Date(text);
+  if (!isNaN(parsed.getTime())) {
+    return Utilities.formatDate(parsed, getDateTimezone_(), "yyyy-MM-dd");
+  }
+
+  return text;
+}
+
+function matchesDate_(sheetDateValue, requestedDate) {
+  if (!requestedDate) {
+    return true;
+  }
+  return normalizeDateValue_(sheetDateValue) === normalizeDateValue_(requestedDate);
+}
+
 function ensureSchema_() {
   var ss = getSpreadsheet_();
   Object.keys(SHEETS).forEach(function (k) {
@@ -17,6 +62,43 @@ function ensureSchema_() {
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     }
   });
+
+  seedConfigDefaults_();
+}
+
+function seedConfigDefaults_() {
+  var rows = getSheetRows_(SHEETS.CONFIG);
+  var config = {};
+  rows.forEach(function (row) {
+    config[String(row.key || "")] = String(row.value || "");
+  });
+
+  var defaults = {
+    ENABLE_RBAC: "true"
+  };
+
+  Object.keys(defaults).forEach(function (key) {
+    if (!config[key]) {
+      appendSheetRow_(SHEETS.CONFIG, {
+        key: key,
+        value: defaults[key]
+      });
+    }
+  });
+}
+
+function getConfigValue_(key, fallback) {
+  var rows = getSheetRows_(SHEETS.CONFIG);
+  for (var i = 0; i < rows.length; i += 1) {
+    if (String(rows[i].key) === String(key)) {
+      return String(rows[i].value || "");
+    }
+  }
+  return fallback;
+}
+
+function isRbacEnabled_() {
+  return String(getConfigValue_("ENABLE_RBAC", "true")).toLowerCase() !== "false";
 }
 
 function seedDefaultServices_() {
@@ -32,7 +114,7 @@ function seedDefaultServices_() {
   ];
 
   defaults.forEach(function (svc) {
-    saveService_(svc);
+    saveService_(svc, { userId: "system", role: "ADMIN" });
   });
 }
 
@@ -100,11 +182,43 @@ function nowIso_() {
 }
 
 function ensureCustomer_(customer) {
+  return ensureCustomerForSession_(customer, null);
+}
+
+function ensureCustomerForSession_(customer, session) {
   requireFields_(customer, ["fullName", "phone"]);
+
+  var safeName = sanitizeForSheet_(customer.fullName);
+  var safePhone = sanitizeForSheet_(customer.phone);
+  var safeEmail = normalizeEmail_(customer.email || (session ? session.email : ""));
+  var linkedUserId = session && session.role === "CUSTOMER" ? session.userId : sanitizeForSheet_(customer.linkedUserId || "");
+
   var customers = getSheetRows_(SHEETS.CUSTOMERS);
 
   for (var i = 0; i < customers.length; i += 1) {
-    if (String(customers[i].phone) === String(customer.phone) && String(customers[i].active) !== "false") {
+    var row = customers[i];
+    if (String(row.active) === "false") {
+      continue;
+    }
+
+    var byLinkedUser = linkedUserId && String(row.linkedUserId) === String(linkedUserId);
+    var byPhone = String(row.phone) === String(safePhone);
+    var byEmail = safeEmail && normalizeEmail_(row.email) === safeEmail;
+
+    if (byLinkedUser || byPhone || byEmail) {
+      if (linkedUserId && !row.linkedUserId) {
+        updateRowById_(SHEETS.CUSTOMERS, "customerId", row.customerId, {
+          linkedUserId: linkedUserId,
+          ownershipModel: "PERSONAL",
+          updatedAt: nowIso_()
+        });
+      }
+      if (safeEmail && !row.email) {
+        updateRowById_(SHEETS.CUSTOMERS, "customerId", row.customerId, {
+          email: safeEmail,
+          updatedAt: nowIso_()
+        });
+      }
       return customers[i].customerId;
     }
   }
@@ -113,11 +227,14 @@ function ensureCustomer_(customer) {
   var ts = nowIso_();
   appendSheetRow_(SHEETS.CUSTOMERS, {
     customerId: id,
-    fullName: customer.fullName,
-    phone: customer.phone,
-    email: customer.email || "",
+    fullName: safeName,
+    phone: safePhone,
+    email: safeEmail,
     consentStatus: customer.consentStatus || "UNKNOWN",
     active: true,
+    linkedUserId: linkedUserId || "",
+    managedBy: session && session.role === "STAFF" ? session.userId : "",
+    ownershipModel: linkedUserId ? "PERSONAL" : "SALON",
     createdAt: ts,
     updatedAt: ts
   });
@@ -135,23 +252,64 @@ function getServiceById_(serviceId) {
   return null;
 }
 
-function saveService_(service) {
+function saveService_(service, session) {
   requireFields_(service, ["name", "durationMin", "price", "category"]);
   var id = service.serviceId || generateId_("SVC");
   var ts = nowIso_();
 
+  var createdByUserId = (session && session.userId) || "system";
+  var maintainedByJson = service.maintainedByJson || "[]";
+
   appendSheetRow_(SHEETS.SERVICES, {
     serviceId: id,
-    name: service.name,
+    name: sanitizeForSheet_(service.name),
     durationMin: Number(service.durationMin),
     price: Number(service.price),
-    category: service.category,
+    category: sanitizeForSheet_(service.category),
     active: service.active === false ? false : true,
+    createdByUserId: createdByUserId,
+    maintainedByJson: maintainedByJson,
     createdAt: ts,
     updatedAt: ts
   });
 
   return id;
+}
+
+function upsertServiceAsAdmin_(service, session) {
+  requireRole_(session, ["ADMIN"]);
+  requireFields_(service, ["name", "durationMin", "price", "category"]);
+
+  if (!service.serviceId) {
+    var createdId = saveService_(service, session);
+    logEvent_("INFO", "SERVICE_CREATE", "Service", createdId, session.email, {
+      name: service.name,
+      category: service.category
+    });
+    return { serviceId: createdId, created: true };
+  }
+
+  var existing = getServiceById_(service.serviceId);
+  if (!existing) {
+    throw new Error("Service not found");
+  }
+
+  updateRowById_(SHEETS.SERVICES, "serviceId", service.serviceId, {
+    name: sanitizeForSheet_(service.name),
+    durationMin: Number(service.durationMin),
+    price: Number(service.price),
+    category: sanitizeForSheet_(service.category),
+    active: service.active === false ? false : true,
+    maintainedByJson: service.maintainedByJson || existing.maintainedByJson || "[]",
+    updatedAt: nowIso_()
+  });
+
+  logEvent_("INFO", "SERVICE_UPDATE", "Service", service.serviceId, session.email, {
+    name: service.name,
+    category: service.category
+  });
+
+  return { serviceId: service.serviceId, created: false };
 }
 
 function listActiveServices_() {
@@ -174,10 +332,58 @@ function overlaps_(aStart, aEnd, bStart, bEnd) {
   return aStart < bEnd && bStart < aEnd;
 }
 
-function listAppointmentsByDate_(date) {
+function getCustomerById_(customerId) {
+  var customers = getSheetRows_(SHEETS.CUSTOMERS);
+  for (var i = 0; i < customers.length; i += 1) {
+    if (String(customers[i].customerId) === String(customerId) && String(customers[i].active) !== "false") {
+      return customers[i];
+    }
+  }
+  return null;
+}
+
+function getUserById_(userId) {
+  if (!userId) {
+    return null;
+  }
+  var users = getSheetRows_(SHEETS.USERS);
+  for (var i = 0; i < users.length; i += 1) {
+    if (String(users[i].userId) === String(userId) && String(users[i].active) !== "false") {
+      return users[i];
+    }
+  }
+  return null;
+}
+
+function isAppointmentVisibleToSession_(session, appointmentRow, customerRow) {
+  if (!session) {
+    return false;
+  }
+
+  var role = normalizeRole_(session.role);
+  if (role === "ADMIN") {
+    return true;
+  }
+
+  if (role === "STAFF") {
+    return String(appointmentRow.assignedStaffId || appointmentRow.staffId || "") === String(session.userId);
+  }
+
+  if (role === "CUSTOMER") {
+    if (String(appointmentRow.createdByUserId || "") === String(session.userId)) {
+      return true;
+    }
+    return customerRow && String(customerRow.linkedUserId || "") === String(session.userId);
+  }
+
+  return false;
+}
+
+function listAppointmentsByDate_(date, session) {
   var rows = getSheetRows_(SHEETS.APPOINTMENTS);
   var customers = getSheetRows_(SHEETS.CUSTOMERS);
   var services = getSheetRows_(SHEETS.SERVICES);
+  var users = getSheetRows_(SHEETS.USERS);
 
   var customerById = {};
   customers.forEach(function (c) {
@@ -189,22 +395,43 @@ function listAppointmentsByDate_(date) {
     serviceById[s.serviceId] = s;
   });
 
+  var userById = {};
+  users.forEach(function (u) {
+    userById[u.userId] = u;
+  });
+
   return rows
     .filter(function (x) {
-      return String(x.date) === String(date);
+      if (!matchesDate_(x.date, date)) {
+        return false;
+      }
+      if (!isRbacEnabled_()) {
+        return true;
+      }
+      if (!session) {
+        return false;
+      }
+      var customer = customerById[x.customerId] || null;
+      return isAppointmentVisibleToSession_(session, x, customer);
     })
     .map(function (x) {
       var customer = customerById[x.customerId] || {};
       var service = serviceById[x.serviceId] || {};
+      var staffUser = userById[x.assignedStaffId] || userById[x.staffId] || {};
       return {
         appointmentId: x.appointmentId,
-        date: x.date,
+        customerId: x.customerId,
+        serviceId: x.serviceId,
+        date: normalizeDateValue_(x.date),
         startTime: x.startTime,
         endTime: x.endTime,
         status: x.status,
         customerName: customer.fullName || "Unknown",
         serviceName: service.name || "Unknown",
-        staffName: x.staffId || ""
+        staffName: staffUser.fullName || x.assignedStaffId || x.staffId || "",
+        assignedStaffId: x.assignedStaffId || x.staffId || "",
+        notes: x.notes || "",
+        sessionNotes: x.sessionNotes || ""
       };
     })
     .sort(function (a, b) {
@@ -223,7 +450,7 @@ function listAvailableSlots_(serviceId, date) {
   }
 
   var appointments = getSheetRows_(SHEETS.APPOINTMENTS).filter(function (a) {
-    return String(a.date) === String(date) && String(a.status) !== STATUS.CANCELED;
+    return matchesDate_(a.date, date) && String(a.status) !== STATUS.CANCELED;
   });
 
   var duration = Number(service.durationMin);
@@ -252,6 +479,17 @@ function listAvailableSlots_(serviceId, date) {
 }
 
 function createAppointmentWithCustomer_(payload) {
+  return createAppointmentWithCustomerForSession_(payload, null);
+}
+
+function createAppointmentWithCustomerForSession_(payload, session) {
+  if (isRbacEnabled_()) {
+    if (!session) {
+      throw new Error("Authentication required for booking");
+    }
+    requireRole_(session, ["ADMIN", "STAFF", "CUSTOMER"]);
+  }
+
   validateAppointmentInput_(payload);
 
   var service = getServiceById_(payload.serviceId);
@@ -274,21 +512,47 @@ function createAppointmentWithCustomer_(payload) {
     throw new Error("Requested slot is not available");
   }
 
-  var customerId = ensureCustomer_(payload.customer);
+  var bookingCustomer = {
+    fullName: payload.customer.fullName,
+    phone: payload.customer.phone,
+    email: payload.customer.email || "",
+    consentStatus: payload.customer.consentStatus || "UNKNOWN"
+  };
+
+  if (session && session.role === "CUSTOMER") {
+    bookingCustomer.email = session.email;
+  }
+
+  var customerId = ensureCustomerForSession_(bookingCustomer, session);
   var id = generateId_("APT");
   var ts = nowIso_();
+  var actorRole = normalizeRole_(session && session.role ? session.role : "CUSTOMER");
+  var assignedStaffId = sanitizeForSheet_(payload.assignedStaffId || payload.staffId || "");
+
+  if (assignedStaffId) {
+    var assignedStaff = getUserById_(assignedStaffId);
+    if (!assignedStaff || normalizeRole_(assignedStaff.role) !== "STAFF") {
+      throw new Error("Assigned staff is invalid or inactive");
+    }
+  }
 
   appendSheetRow_(SHEETS.APPOINTMENTS, {
     appointmentId: id,
     customerId: customerId,
     serviceId: payload.serviceId,
-    staffId: payload.staffId || "",
+    staffId: assignedStaffId,
+    assignedStaffId: assignedStaffId,
     date: payload.date,
     startTime: payload.startTime,
     endTime: endTime,
     status: STATUS.CONFIRMED,
-    sourceChannel: payload.sourceChannel || "WEB",
-    notes: payload.notes || "",
+    sourceChannel: payload.sourceChannel || "WEB_AUTH",
+    notes: sanitizeForSheet_(payload.notes || ""),
+    sessionNotes: "",
+    createdByUserId: session ? session.userId : "",
+    createdByRole: actorRole,
+    voidedAt: "",
+    voidedByUserId: "",
     createdAt: ts,
     updatedAt: ts
   });
@@ -298,12 +562,14 @@ function createAppointmentWithCustomer_(payload) {
     appointmentId: id,
     fromStatus: STATUS.PENDING,
     toStatus: STATUS.CONFIRMED,
-    changedBy: "system",
+    changedBy: session ? session.email : "system",
+    changedByUserId: session ? session.userId : "system",
+    changedByRole: actorRole,
     reason: "Appointment created",
     changedAt: ts
   });
 
-  logEvent_("INFO", "APPOINTMENT_CREATE", "Appointment", id, payload.customer.fullName, {
+  logEvent_("INFO", "APPOINTMENT_CREATE", "Appointment", id, session ? session.email : payload.customer.fullName, {
     date: payload.date,
     startTime: payload.startTime,
     serviceId: payload.serviceId
@@ -312,6 +578,7 @@ function createAppointmentWithCustomer_(payload) {
   return {
     appointmentId: id,
     customerId: customerId,
+    assignedStaffId: assignedStaffId,
     status: STATUS.CONFIRMED,
     date: payload.date,
     startTime: payload.startTime,
@@ -319,10 +586,146 @@ function createAppointmentWithCustomer_(payload) {
   };
 }
 
-function getDailySummary_(date) {
-  var appointments = getSheetRows_(SHEETS.APPOINTMENTS).filter(function (a) {
-    return String(a.date) === String(date);
+function findAppointmentById_(appointmentId) {
+  var rows = getSheetRows_(SHEETS.APPOINTMENTS);
+  for (var i = 0; i < rows.length; i += 1) {
+    if (String(rows[i].appointmentId) === String(appointmentId)) {
+      return rows[i];
+    }
+  }
+  return null;
+}
+
+function assignAppointmentStaffAsAdmin_(payload, session) {
+  requireRole_(session, ["ADMIN"]);
+  requireFields_(payload, ["appointmentId", "staffUserId"]);
+
+  var appointment = findAppointmentById_(payload.appointmentId);
+  if (!appointment) {
+    throw new Error("Appointment not found");
+  }
+
+  var staff = getUserById_(payload.staffUserId);
+  if (!staff || normalizeRole_(staff.role) !== "STAFF") {
+    throw new Error("Staff user not found or invalid");
+  }
+
+  updateRowById_(SHEETS.APPOINTMENTS, "appointmentId", payload.appointmentId, {
+    assignedStaffId: staff.userId,
+    staffId: staff.userId,
+    updatedAt: nowIso_()
   });
+
+  logEvent_("INFO", "APPOINTMENT_ASSIGN_STAFF", "Appointment", payload.appointmentId, session.email, {
+    staffUserId: staff.userId
+  });
+
+  return {
+    appointmentId: payload.appointmentId,
+    assignedStaffId: staff.userId
+  };
+}
+
+function updateAppointmentStatus_(payload, session) {
+  requireFields_(payload, ["appointmentId", "toStatus"]);
+  requireRole_(session, ["ADMIN", "STAFF", "CUSTOMER"]);
+
+  var appointment = findAppointmentById_(payload.appointmentId);
+  if (!appointment) {
+    throw new Error("Appointment not found");
+  }
+
+  var toStatus = String(payload.toStatus || "").toUpperCase();
+  var fromStatus = String(appointment.status || STATUS.PENDING).toUpperCase();
+  var role = normalizeRole_(session.role);
+  var customer = getCustomerById_(appointment.customerId);
+
+  if (!isAppointmentVisibleToSession_(session, appointment, customer)) {
+    throw new Error("Appointment is outside your access scope");
+  }
+
+  if (role === "STAFF") {
+    var staffAllowed = [STATUS.CHECKED_IN, STATUS.COMPLETED, STATUS.NO_SHOW];
+    if (staffAllowed.indexOf(toStatus) < 0) {
+      throw new Error("Staff can only mark started, completed, or no-show");
+    }
+  }
+
+  if (role === "CUSTOMER" && toStatus !== STATUS.CANCELED) {
+    throw new Error("Customers can only cancel their own appointments");
+  }
+
+  assertValidStatusTransition_(fromStatus, toStatus);
+
+  var updates = {
+    status: toStatus,
+    updatedAt: nowIso_()
+  };
+
+  if (payload.sessionNotes !== undefined) {
+    updates.sessionNotes = sanitizeForSheet_(payload.sessionNotes || "");
+  }
+  if (payload.notes !== undefined) {
+    updates.notes = sanitizeForSheet_(payload.notes || "");
+  }
+  if (role === "ADMIN" && payload.voidTransaction === true && toStatus === STATUS.CANCELED) {
+    updates.voidedAt = nowIso_();
+    updates.voidedByUserId = session.userId;
+  }
+
+  updateRowById_(SHEETS.APPOINTMENTS, "appointmentId", payload.appointmentId, updates);
+
+  appendSheetRow_(SHEETS.STATUS_HISTORY, {
+    historyId: generateId_("HIS"),
+    appointmentId: payload.appointmentId,
+    fromStatus: fromStatus,
+    toStatus: toStatus,
+    changedBy: session.email,
+    changedByUserId: session.userId,
+    changedByRole: role,
+    reason: sanitizeForSheet_(payload.reason || "Status updated"),
+    changedAt: nowIso_()
+  });
+
+  logEvent_("INFO", "APPOINTMENT_STATUS_UPDATE", "Appointment", payload.appointmentId, session.email, {
+    fromStatus: fromStatus,
+    toStatus: toStatus,
+    voidTransaction: role === "ADMIN" && payload.voidTransaction === true
+  });
+
+  return {
+    appointmentId: payload.appointmentId,
+    fromStatus: fromStatus,
+    toStatus: toStatus
+  };
+}
+
+function listCustomersForAdmin_(session) {
+  requireRole_(session, ["ADMIN"]);
+
+  return getSheetRows_(SHEETS.CUSTOMERS)
+    .filter(function (row) {
+      return String(row.active) !== "false";
+    })
+    .map(function (row) {
+      return {
+        customerId: row.customerId,
+        fullName: row.fullName,
+        phone: row.phone,
+        email: row.email,
+        linkedUserId: row.linkedUserId || "",
+        managedBy: row.managedBy || "",
+        ownershipModel: row.ownershipModel || "SALON"
+      };
+    });
+}
+
+function getDailySummary_(date, session) {
+  if (isRbacEnabled_()) {
+    requireRole_(session, ["ADMIN", "STAFF"]);
+  }
+
+  var appointments = listAppointmentsByDate_(date, session);
   var services = getSheetRows_(SHEETS.SERVICES);
   var servicePrice = {};
 

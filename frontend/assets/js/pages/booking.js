@@ -1,5 +1,9 @@
 (function () {
   var form = document.getElementById("booking-form");
+  if (!form) {
+    return;
+  }
+
   var serviceSelect = document.getElementById("serviceId");
   var dateInput = document.getElementById("date");
   var slotList = document.getElementById("slot-list");
@@ -7,11 +11,25 @@
   var startTimeInput = document.getElementById("startTime");
   var emailInput = document.getElementById("email");
   var submitButton = form.querySelector("button[type='submit']");
+  var fullNameInput = document.getElementById("fullName");
+  var phoneInput = document.getElementById("phone");
   var categoryButtons = Array.prototype.slice.call(document.querySelectorAll(".service-toggle"));
   var filterNote = document.getElementById("service-filter-note");
   var slotSummary = document.getElementById("slot-summary");
   var slotExpandBtn = document.getElementById("slot-expand-btn");
   var slotBusyToggle = document.getElementById("slot-busy-toggle");
+  var confirmationModal = document.getElementById("confirmation-modal");
+  var confirmationRef = document.getElementById("confirmation-ref");
+  var honeypotInput = document.getElementById("company");
+  var challengeTokenInput = document.getElementById("challengeToken");
+  var protectionStatus = document.getElementById("booking-protection-status");
+  var bookingAuthGuestPanel = document.getElementById("booking-auth-guest-panel");
+  var bookingAuthContent = document.getElementById("booking-auth-content");
+  var slotsAuthGuestPanel = document.getElementById("slots-auth-guest-panel");
+  var slotsAuthContent = document.getElementById("slots-auth-content");
+  var openAuthFromBookingButton = document.getElementById("open-auth-from-booking");
+  var roleCenterNote = document.getElementById("role-center-note");
+  var rolePanels = Array.prototype.slice.call(document.querySelectorAll("[data-role-panel]"));
   var allServices = [];
   var activeCategory = "all";
   var slotsCache = {};
@@ -20,6 +38,18 @@
   var showAllSlots = false;
   var includeBusySlots = false;
   var lastRenderedSlots = [];
+  var submitCooldownUntil = 0;
+  var submitGateArmedAt = Date.now();
+  var pendingSubmitAfterAuth = false;
+  var recentFingerprints = {};
+
+  var BOOKING_AUTH_REQUIRED = !(window.APP_CONFIG && window.APP_CONFIG.BOOKING_AUTH_REQUIRED === false);
+  var BOOKING_VIEW_REQUIRES_AUTH = !(window.APP_CONFIG && window.APP_CONFIG.BOOKING_VIEW_REQUIRES_AUTH === false);
+  var MIN_INTERACTION_MS = Number(window.APP_CONFIG && window.APP_CONFIG.BOOKING_MIN_INTERACTION_MS) || 3500;
+  var SUBMIT_COOLDOWN_MS = Number(window.APP_CONFIG && window.APP_CONFIG.BOOKING_SUBMIT_COOLDOWN_MS) || 12000;
+  var DUPLICATE_WINDOW_MS = Number(window.APP_CONFIG && window.APP_CONFIG.BOOKING_DUPLICATE_WINDOW_MS) || 60000;
+  var CHALLENGE_ENABLED = !!(window.APP_CONFIG && window.APP_CONFIG.CHALLENGE_ENABLED);
+  var CHALLENGE_HEADER_NAME = (window.APP_CONFIG && window.APP_CONFIG.CHALLENGE_HEADER_NAME) || "X-Turnstile-Token";
 
   var categoryLabels = {
     all: "All Services",
@@ -31,9 +61,214 @@
   };
 
   function showToast(type, text) {
+    if (!toast) {
+      return;
+    }
     toast.className = "alert mt-3";
     toast.classList.add(type === "error" ? "alert-danger" : "alert-success");
     toast.textContent = text;
+  }
+
+  function getFallbackSession() {
+    try {
+      var raw = window.localStorage.getItem("enchantressSession");
+      if (!raw) {
+        return null;
+      }
+      var session = JSON.parse(raw);
+      if (!session || !session.user || !session.token) {
+        return null;
+      }
+      return session;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function getSession() {
+    if (window.authSession && typeof window.authSession.getSession === "function") {
+      return window.authSession.getSession();
+    }
+    return getFallbackSession();
+  }
+
+  function getUser() {
+    var session = getSession();
+    return session && session.user ? session.user : null;
+  }
+
+  function getRole() {
+    var user = getUser();
+    return user ? String(user.role || "").toUpperCase() : "GUEST";
+  }
+
+  function isAuthenticated() {
+    return !!getSession();
+  }
+
+  function openAuthModal() {
+    if (window.authSession && typeof window.authSession.openModal === "function") {
+      window.authSession.openModal();
+      return;
+    }
+
+    var openButton = document.getElementById("open-auth-modal");
+    if (openButton) {
+      openButton.click();
+    }
+  }
+
+  function syncRolePanels() {
+    var role = getRole();
+
+    rolePanels.forEach(function (panel) {
+      var targetRole = panel.getAttribute("data-role-panel");
+      panel.classList.toggle("d-none", targetRole !== role);
+    });
+
+    if (!roleCenterNote) {
+      return;
+    }
+
+    if (role === "GUEST") {
+      roleCenterNote.textContent = "Sign in to unlock your role panel. Staff and admin actions are visible now and will be connected in the backend phase.";
+    } else if (role === "CUSTOMER") {
+      roleCenterNote.textContent = "Customer session active. You can now confirm your appointment submission.";
+    } else if (role === "STAFF") {
+      roleCenterNote.textContent = "Staff session active. Staff workflow cards are visible now and backend actions will follow in phase 2.";
+    } else if (role === "ADMIN") {
+      roleCenterNote.textContent = "Admin session active. Operational authority cards are visible now and backend controls will follow in phase 2.";
+    }
+  }
+
+  function prefillProfileFromSession() {
+    var user = getUser();
+    if (!user) {
+      return;
+    }
+
+    if (fullNameInput && !fullNameInput.value.trim()) {
+      fullNameInput.value = user.fullName || "";
+    }
+    if (phoneInput && !phoneInput.value.trim()) {
+      phoneInput.value = user.phone || "";
+    }
+    if (emailInput && !emailInput.value.trim()) {
+      emailInput.value = user.email || "";
+    }
+  }
+
+  function cooldownRemainingMs() {
+    return Math.max(0, submitCooldownUntil - Date.now());
+  }
+
+  function clearExpiredFingerprints() {
+    var now = Date.now();
+    Object.keys(recentFingerprints).forEach(function (key) {
+      if (now - recentFingerprints[key] > DUPLICATE_WINDOW_MS) {
+        delete recentFingerprints[key];
+      }
+    });
+  }
+
+  function buildPayloadFingerprint(payload) {
+    return [
+      payload.customer.fullName,
+      payload.customer.phone,
+      payload.customer.email,
+      payload.serviceId,
+      payload.date,
+      payload.startTime
+    ]
+      .join("|")
+      .toLowerCase();
+  }
+
+  function challengeTokenValue() {
+    if (challengeTokenInput && challengeTokenInput.value.trim()) {
+      return challengeTokenInput.value.trim();
+    }
+    if (window.__ENCHANTRESS_TURNSTILE_TOKEN) {
+      return String(window.__ENCHANTRESS_TURNSTILE_TOKEN).trim();
+    }
+    return "";
+  }
+
+  function updateProtectionStatus() {
+    if (!protectionStatus) {
+      return;
+    }
+
+    var role = getRole();
+    var cooldown = cooldownRemainingMs();
+
+    if (cooldown > 0) {
+      protectionStatus.textContent = "Submit cooldown active. Please wait " + Math.ceil(cooldown / 1000) + " second(s).";
+      return;
+    }
+
+    if (BOOKING_VIEW_REQUIRES_AUTH && role === "GUEST") {
+      protectionStatus.textContent = "Login required to view Appointment Details and slots.";
+      return;
+    }
+
+    if (BOOKING_AUTH_REQUIRED && role === "GUEST") {
+      protectionStatus.textContent = "Security policy active: login is required before confirming booking.";
+      return;
+    }
+
+    protectionStatus.textContent = "Security policy is active: account gate, cooldown, duplicate guard, and anti-bot checks.";
+  }
+
+  function showConfirmationModal(appointmentId) {
+    if (!confirmationModal || !confirmationRef) {
+      return;
+    }
+    confirmationRef.textContent = appointmentId;
+    confirmationModal.classList.remove("d-none");
+    document.body.style.overflow = "hidden";
+  }
+
+  function updateBookingVisibility() {
+    var lockedForGuest = BOOKING_VIEW_REQUIRES_AUTH && !isAuthenticated();
+
+    if (bookingAuthGuestPanel) {
+      bookingAuthGuestPanel.classList.toggle("d-none", !lockedForGuest);
+    }
+    if (bookingAuthContent) {
+      bookingAuthContent.classList.toggle("d-none", lockedForGuest);
+    }
+    if (slotsAuthGuestPanel) {
+      slotsAuthGuestPanel.classList.toggle("d-none", !lockedForGuest);
+    }
+    if (slotsAuthContent) {
+      slotsAuthContent.classList.toggle("d-none", lockedForGuest);
+    }
+
+    if (!lockedForGuest) {
+      return;
+    }
+
+    if (slotList) {
+      slotList.innerHTML = "";
+    }
+    if (slotSummary) {
+      slotSummary.textContent = "Login required to view available slots.";
+    }
+    if (slotExpandBtn) {
+      slotExpandBtn.classList.add("d-none");
+    }
+    if (slotBusyToggle) {
+      slotBusyToggle.classList.add("d-none");
+    }
+  }
+
+  function closeConfirmationModal() {
+    if (!confirmationModal) {
+      return;
+    }
+    confirmationModal.classList.add("d-none");
+    document.body.style.overflow = "auto";
   }
 
   function setSelectedStartTime(timeText) {
@@ -47,7 +282,31 @@
   function setSubmitting(isBusy) {
     isSubmitting = isBusy;
     submitButton.disabled = isBusy;
-    submitButton.textContent = isBusy ? "Confirming..." : "Confirm Booking";
+
+    if (isBusy) {
+      submitButton.textContent = "Confirming...";
+      return;
+    }
+
+    var cooldown = cooldownRemainingMs();
+    if (cooldown > 0) {
+      submitButton.textContent = "Wait " + Math.ceil(cooldown / 1000) + "s";
+      submitButton.disabled = true;
+      return;
+    }
+
+    if ((BOOKING_VIEW_REQUIRES_AUTH || BOOKING_AUTH_REQUIRED) && !isAuthenticated()) {
+      submitButton.textContent = "Login to Confirm Booking";
+      submitButton.disabled = false;
+      return;
+    }
+
+    submitButton.textContent = "Confirm Booking";
+  }
+
+  function setSubmitCooldown() {
+    submitCooldownUntil = Date.now() + SUBMIT_COOLDOWN_MS;
+    updateProtectionStatus();
   }
 
   function updateSlotToolbar(total, availableCount, busyCount, displayedCount) {
@@ -135,8 +394,41 @@
     }
   }
 
-  function formatDate(date) {
+  function formatDateForTimezone(date, timezone) {
+    try {
+      var formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: timezone || "Asia/Manila",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      });
+      var parts = formatter.formatToParts(date);
+      var year = "";
+      var month = "";
+      var day = "";
+
+      parts.forEach(function (part) {
+        if (part.type === "year") {
+          year = part.value;
+        } else if (part.type === "month") {
+          month = part.value;
+        } else if (part.type === "day") {
+          day = part.value;
+        }
+      });
+
+      if (year && month && day) {
+        return year + "-" + month + "-" + day;
+      }
+    } catch (error) {
+      // Fallback handled below.
+    }
+
     return new Date(date).toISOString().slice(0, 10);
+  }
+
+  function formatDate(date) {
+    return formatDateForTimezone(new Date(date), window.APP_CONFIG && window.APP_CONFIG.TIMEZONE);
   }
 
   function resolveCategory(service) {
@@ -230,6 +522,22 @@
   }
 
   async function loadSlots() {
+    if (BOOKING_VIEW_REQUIRES_AUTH && !isAuthenticated()) {
+      if (slotSummary) {
+        slotSummary.textContent = "Login required to view available slots.";
+      }
+      if (slotList) {
+        slotList.innerHTML = "";
+      }
+      if (slotExpandBtn) {
+        slotExpandBtn.classList.add("d-none");
+      }
+      if (slotBusyToggle) {
+        slotBusyToggle.classList.add("d-none");
+      }
+      return;
+    }
+
     if (!serviceSelect.value || !dateInput.value) {
       slotList.innerHTML = "";
       if (slotSummary) {
@@ -272,9 +580,88 @@
     }, 180);
   }
 
-  async function submitBooking(event) {
-    event.preventDefault();
+  function bookingPayload() {
+    return {
+      customer: {
+        fullName: fullNameInput.value.trim(),
+        phone: phoneInput.value.trim(),
+        email: emailInput.value.trim()
+      },
+      serviceId: serviceSelect.value,
+      date: dateInput.value,
+      startTime: startTimeInput.value
+    };
+  }
 
+  function consumeAdminRedirectNotice() {
+    try {
+      var reason = window.sessionStorage.getItem("enchantressAdminRedirectReason");
+      if (!reason) {
+        return;
+      }
+
+      window.sessionStorage.removeItem("enchantressAdminRedirectReason");
+
+      if (reason === "auth_required") {
+        showToast("error", "Please login before opening the admin dashboard.");
+      } else if (reason === "role_forbidden") {
+        showToast("error", "Only staff or admin accounts can access the admin dashboard.");
+      }
+    } catch (error) {
+      // Ignore storage access issues.
+    }
+  }
+
+  function runSubmitGuards(payload) {
+    if (honeypotInput && honeypotInput.value.trim()) {
+      throw new Error("Validation failed. Please refresh and try again.");
+    }
+
+    if ((BOOKING_VIEW_REQUIRES_AUTH || BOOKING_AUTH_REQUIRED) && !isAuthenticated()) {
+      pendingSubmitAfterAuth = true;
+      openAuthModal();
+      throw new Error("Please login or register to unlock Appointment Details and book.");
+    }
+
+    var cooldown = cooldownRemainingMs();
+    if (cooldown > 0) {
+      throw new Error("Please wait " + Math.ceil(cooldown / 1000) + " second(s) before submitting again.");
+    }
+
+    var dwell = Date.now() - submitGateArmedAt;
+    if (dwell < MIN_INTERACTION_MS) {
+      var secondsLeft = Math.ceil((MIN_INTERACTION_MS - dwell) / 1000);
+      throw new Error("Please review your booking details for " + secondsLeft + " more second(s) before submitting.");
+    }
+
+    clearExpiredFingerprints();
+
+    var fingerprint = buildPayloadFingerprint(payload);
+    var lastSeen = recentFingerprints[fingerprint] || 0;
+    if (Date.now() - lastSeen < DUPLICATE_WINDOW_MS) {
+      throw new Error("Duplicate booking detected. Please wait before sending the same request again.");
+    }
+
+    return fingerprint;
+  }
+
+  function challengeHeaders() {
+    var token = challengeTokenValue();
+
+    if (CHALLENGE_ENABLED && !token) {
+      throw new Error("Security challenge is required before booking. Please complete the verification step.");
+    }
+
+    if (!token) {
+      return null;
+    }
+
+    var headers = {};
+    headers[CHALLENGE_HEADER_NAME] = token;
+    return headers;
+  }
+
+  async function submitBookingInternal() {
     if (isSubmitting) {
       return;
     }
@@ -290,30 +677,61 @@
       return;
     }
 
-    var payload = {
-      customer: {
-        fullName: document.getElementById("fullName").value.trim(),
-        phone: document.getElementById("phone").value.trim(),
-        email: emailInput.value.trim()
-      },
-      serviceId: serviceSelect.value,
-      date: dateInput.value,
-      startTime: startTimeInput.value
-    };
+    var payload = bookingPayload();
 
     try {
+      var fingerprint = runSubmitGuards(payload);
+
+      var requestHeaders = challengeHeaders();
+      recentFingerprints[fingerprint] = Date.now();
       setSubmitting(true);
-      var data = await window.apiClient.post("/appointments/create", payload, { retries: 0 });
-      showToast("success", "Booking confirmed. Ref: " + data.appointmentId);
+      setSubmitCooldown();
+
+      var options = { retries: 0 };
+      if (requestHeaders) {
+        options.headers = requestHeaders;
+      }
+
+      var data = await window.apiClient.post("/appointments/create", payload, options);
+      showConfirmationModal(data.appointmentId);
       slotsCache = {};
       await loadSlots();
       form.reset();
+      prefillProfileFromSession();
       dateInput.value = formatDate(Date.now());
       startTimeInput.value = "";
-      setSubmitting(false);
+      submitGateArmedAt = Date.now();
+      showToast("success", "Booking confirmed successfully.");
     } catch (error) {
+      showToast("error", error.userMessage || error.message || "Booking failed.");
+    } finally {
       setSubmitting(false);
-      showToast("error", error.message);
+      updateProtectionStatus();
+    }
+  }
+
+  async function submitBooking(event) {
+    event.preventDefault();
+    await submitBookingInternal();
+  }
+
+  function handleSessionChange() {
+    syncRolePanels();
+    updateBookingVisibility();
+    prefillProfileFromSession();
+    setSubmitting(false);
+    updateProtectionStatus();
+
+    if (pendingSubmitAfterAuth && isAuthenticated()) {
+      pendingSubmitAfterAuth = false;
+      submitBookingInternal();
+      return;
+    }
+
+    if (isAuthenticated()) {
+      loadSlots().catch(function (error) {
+        showToast("error", error.message);
+      });
     }
   }
 
@@ -342,6 +760,33 @@
         showAllSlots = false;
         renderSlots(lastRenderedSlots);
       });
+    }
+
+    var confirmationCloseBtn = document.querySelector(".confirmation-close-btn");
+    if (confirmationCloseBtn) {
+      confirmationCloseBtn.addEventListener("click", closeConfirmationModal);
+    }
+    if (openAuthFromBookingButton) {
+      openAuthFromBookingButton.addEventListener("click", openAuthModal);
+    }
+
+    window.addEventListener("enchantress:session-changed", handleSessionChange);
+    window.setInterval(function () {
+      if (!isSubmitting) {
+        setSubmitting(false);
+      }
+      updateProtectionStatus();
+    }, 500);
+
+    consumeAdminRedirectNotice();
+    syncRolePanels();
+    updateBookingVisibility();
+    prefillProfileFromSession();
+    setSubmitting(false);
+    updateProtectionStatus();
+
+    if (BOOKING_VIEW_REQUIRES_AUTH && !isAuthenticated() && window.location.hash === "#booking-panel") {
+      openAuthModal();
     }
 
     try {

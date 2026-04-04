@@ -44,6 +44,113 @@ function verifyGatewayEnvelope_(envelope) {
   envelope.path = p.path;
   envelope.query = p.query;
   envelope.body = p.body;
+  envelope.headers = p.headers || {};
+}
+
+function getSessionTokenSecret_() {
+  return PropertiesService.getScriptProperties().getProperty("AUTH_TOKEN_SECRET") || getRequiredProperty_("SHARED_SECRET");
+}
+
+function getSessionTtlMs_() {
+  var minutes = Number(PropertiesService.getScriptProperties().getProperty("SESSION_TTL_MINUTES") || "720");
+  if (!isFinite(minutes) || minutes <= 0) {
+    minutes = 720;
+  }
+  return minutes * 60 * 1000;
+}
+
+function getAuthorizationHeader_(envelope) {
+  var headers = envelope && envelope.headers ? envelope.headers : {};
+  return String(headers.Authorization || headers.authorization || "").trim();
+}
+
+function parseAndVerifySessionToken_(token) {
+  var parts = String(token || "").split(".");
+  if (parts.length !== 2) {
+    throw new Error("Invalid session token format");
+  }
+
+  var payloadJson = Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString();
+  var providedSig = String(parts[1] || "");
+  var expectedSig = toHex_(Utilities.computeHmacSha256Signature(payloadJson, getSessionTokenSecret_()));
+
+  if (providedSig !== expectedSig) {
+    throw new Error("Invalid session token signature");
+  }
+
+  var payload = JSON.parse(payloadJson);
+  if (!payload || !payload.uid || !payload.email || !payload.role || !payload.iat || !payload.exp) {
+    throw new Error("Invalid session token payload");
+  }
+
+  var now = Date.now();
+  if (Number(payload.exp) < now) {
+    throw new Error("Session expired");
+  }
+
+  if (now - Number(payload.iat) > getSessionTtlMs_()) {
+    throw new Error("Session stale");
+  }
+
+  return payload;
+}
+
+function getCurrentSession_(envelope) {
+  var authorization = getAuthorizationHeader_(envelope);
+  if (!authorization || !/^Bearer\s+/i.test(authorization)) {
+    return null;
+  }
+
+  var token = authorization.replace(/^Bearer\s+/i, "").trim();
+  if (!token) {
+    return null;
+  }
+
+  var payload = parseAndVerifySessionToken_(token);
+  var users = getSheetRows_(SHEETS.USERS);
+  var user = null;
+
+  for (var i = 0; i < users.length; i += 1) {
+    var row = users[i];
+    if (String(row.userId) === String(payload.uid) && String(row.active) !== "false") {
+      user = row;
+      break;
+    }
+  }
+
+  if (!user) {
+    throw new Error("User not found or inactive");
+  }
+
+  var email = normalizeEmail_(user.email);
+  if (email !== normalizeEmail_(payload.email)) {
+    throw new Error("Session user mismatch");
+  }
+
+  return {
+    userId: user.userId,
+    email: email,
+    role: normalizeRole_(user.role || payload.role),
+    fullName: user.fullName || ""
+  };
+}
+
+function requireAuthenticatedSession_(envelope) {
+  var session = getCurrentSession_(envelope);
+  if (!session) {
+    throw new Error("Authentication required");
+  }
+  return session;
+}
+
+function requireRole_(session, allowedRoles) {
+  if (!session) {
+    throw new Error("Authentication required");
+  }
+  var role = normalizeRole_(session && session.role);
+  if (allowedRoles.indexOf(role) < 0) {
+    throw new Error("Insufficient permissions");
+  }
 }
 
 function isAuthorizedAdmin_() {

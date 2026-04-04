@@ -1,0 +1,163 @@
+function sanitizeForSheet_(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  var text = String(value).trim();
+  text = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+  if (/^[=+\-@]/.test(text)) {
+    text = "'" + text;
+  }
+
+  return text;
+}
+
+function normalizeEmail_(email) {
+  return sanitizeForSheet_(email).toLowerCase();
+}
+
+function normalizeRole_(role) {
+  var value = sanitizeForSheet_(role).toUpperCase();
+  if (value === "ADMIN" || value === "STAFF" || value === "CUSTOMER") {
+    return value;
+  }
+  return "CUSTOMER";
+}
+
+function hashPassword_(password) {
+  var salt = PropertiesService.getScriptProperties().getProperty("AUTH_SALT") || "enchantress_auth_salt";
+  var digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(password) + "::" + salt,
+    Utilities.Charset.UTF_8
+  );
+  return toHex_(digest);
+}
+
+function generateSessionToken_(userId, role, email) {
+  var payload = {
+    uid: userId,
+    role: role,
+    email: email,
+    iat: Date.now(),
+    exp: Date.now() + getSessionTtlMs_(),
+    nonce: Utilities.getUuid().replace(/-/g, "")
+  };
+
+  var payloadJson = JSON.stringify(payload);
+  var sig = toHex_(Utilities.computeHmacSha256Signature(payloadJson, getSessionTokenSecret_()));
+  return Utilities.base64EncodeWebSafe(payloadJson) + "." + sig;
+}
+
+function registerUser_(payload) {
+  ensureSchema_();
+  requireFields_(payload, ["fullName", "phone", "email", "password"]);
+
+  var fullName = sanitizeForSheet_(payload.fullName);
+  var phone = sanitizeForSheet_(payload.phone);
+  var email = normalizeEmail_(payload.email);
+  var password = String(payload.password || "");
+
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    throw new Error("Invalid email format");
+  }
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters");
+  }
+
+  var users = getSheetRows_(SHEETS.USERS);
+  var alreadyExists = users.some(function (user) {
+    return normalizeEmail_(user.email) === email && String(user.active) !== "false";
+  });
+
+  if (alreadyExists) {
+    throw new Error("Email already registered");
+  }
+
+  var desiredRole = normalizeRole_(payload.role || "CUSTOMER");
+  var role = desiredRole;
+  if ((desiredRole === "ADMIN" || desiredRole === "STAFF") && !isAuthorizedAdmin_()) {
+    role = "CUSTOMER";
+  }
+
+  var userId = generateId_("USR");
+  var ts = nowIso_();
+
+  appendSheetRow_(SHEETS.USERS, {
+    userId: userId,
+    fullName: fullName,
+    email: email,
+    phone: phone,
+    passwordHash: hashPassword_(password),
+    role: role,
+    active: true,
+    createdAt: ts,
+    updatedAt: ts,
+    lastLoginAt: "",
+    deletedAt: "",
+    department: sanitizeForSheet_(payload.department || "")
+  });
+
+  logEvent_("INFO", "AUTH_REGISTER", "User", userId, email, {
+    role: role
+  });
+
+  return {
+    userId: userId,
+    fullName: fullName,
+    email: email,
+    role: role
+  };
+}
+
+function loginUser_(payload) {
+  ensureSchema_();
+  requireFields_(payload, ["email", "password"]);
+
+  var email = normalizeEmail_(payload.email);
+  var passwordHash = hashPassword_(String(payload.password || ""));
+
+  var users = getSheetRows_(SHEETS.USERS);
+  var user = null;
+
+  for (var i = 0; i < users.length; i += 1) {
+    var row = users[i];
+    if (normalizeEmail_(row.email) === email && String(row.active) !== "false") {
+      user = row;
+      break;
+    }
+  }
+
+  if (!user || String(user.passwordHash) !== passwordHash) {
+    throw new Error("Invalid email or password");
+  }
+
+  var role = normalizeRole_(user.role || "CUSTOMER");
+  var token = generateSessionToken_(user.userId, role, user.email);
+  var ts = nowIso_();
+
+  updateRowById_(SHEETS.USERS, "userId", user.userId, {
+    updatedAt: ts,
+    lastLoginAt: ts
+  });
+
+  logEvent_("INFO", "AUTH_LOGIN", "User", user.userId, email, {
+    role: role
+  });
+
+  return {
+    token: token,
+    user: {
+      userId: user.userId,
+      fullName: user.fullName,
+      email: user.email,
+      role: role
+    }
+  };
+}
