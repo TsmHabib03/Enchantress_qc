@@ -18,7 +18,7 @@
 - TURNSTILE_SECRET_KEY (optional)
 2. Deploy worker and note the public URL.
 3. Verify configuration:
-- `GET /api/health` (or `GET /health`) should return `configured.sharedSecret: true` in production.
+- `GET /api/health` (or `GET /health`) should return HTTP 200 when the worker is reachable.
 - If `SHARED_SECRET` is missing, signed API routes return `503 WORKER_MISCONFIGURED` until secret is set.
 
 ## 3) Cloudflare Pages Frontend

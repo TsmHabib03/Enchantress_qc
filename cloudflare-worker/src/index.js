@@ -34,11 +34,7 @@ export default {
             success: true,
             data: {
               status: "ok",
-              worker: "running",
-              configured: {
-                appsScriptUrl: !!env.APPS_SCRIPT_URL,
-                sharedSecret: !!env.SHARED_SECRET
-              }
+              worker: "running"
             }
           },
           200,
