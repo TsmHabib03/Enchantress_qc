@@ -14,9 +14,12 @@
 ## 2) Cloudflare Worker
 1. Set environment variables/secrets:
 - APPS_SCRIPT_URL
-- SHARED_SECRET
+- SHARED_SECRET (`wrangler secret put SHARED_SECRET`)
 - TURNSTILE_SECRET_KEY (optional)
 2. Deploy worker and note the public URL.
+3. Verify configuration:
+- `GET /api/health` (or `GET /health`) should return HTTP 200 when the worker is reachable.
+- If `SHARED_SECRET` is missing, signed API routes return `503 WORKER_MISCONFIGURED` until secret is set.
 
 ## 3) Cloudflare Pages Frontend
 1. Deploy frontend directory as static site.
