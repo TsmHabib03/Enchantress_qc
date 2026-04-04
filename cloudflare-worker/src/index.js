@@ -107,7 +107,7 @@ export default {
             success: false,
             error: {
               code: "WORKER_MISCONFIGURED",
-              message: "Missing SHARED_SECRET. Configure it with `wrangler secret put SHARED_SECRET` for this environment."
+              message: "Missing SHARED_SECRET for this worker environment. Set it using `wrangler secret put SHARED_SECRET`."
             }
           },
           503,
