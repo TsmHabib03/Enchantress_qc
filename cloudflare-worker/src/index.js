@@ -27,6 +27,24 @@ export default {
           request
         );
       }
+
+      if (path === "/health") {
+        return corsJson(
+          {
+            success: true,
+            data: {
+              status: "ok",
+              worker: "running",
+              configured: {
+                appsScriptUrl: !!env.APPS_SCRIPT_URL,
+                sharedSecret: !!env.SHARED_SECRET
+              }
+            }
+          },
+          200,
+          request
+        );
+      }
       const method = request.method.toUpperCase();
       const ip = request.headers.get("CF-Connecting-IP") || "0.0.0.0";
 
@@ -84,10 +102,30 @@ export default {
       };
 
       if (!env.SHARED_SECRET) {
-        throw new Error("Missing SHARED_SECRET in Worker secrets");
+        return corsJson(
+          {
+            success: false,
+            error: {
+              code: "WORKER_MISCONFIGURED",
+              message: "Missing SHARED_SECRET. Configure it with `wrangler secret put SHARED_SECRET` for this environment."
+            }
+          },
+          503,
+          request
+        );
       }
       if (!env.APPS_SCRIPT_URL) {
-        throw new Error("Missing APPS_SCRIPT_URL in Worker variables");
+        return corsJson(
+          {
+            success: false,
+            error: {
+              code: "WORKER_MISCONFIGURED",
+              message: "Missing APPS_SCRIPT_URL in Worker variables."
+            }
+          },
+          503,
+          request
+        );
       }
 
       const envelope = await signEnvelope(payload, env.SHARED_SECRET);
