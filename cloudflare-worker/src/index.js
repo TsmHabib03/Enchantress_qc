@@ -4,7 +4,7 @@ export default {
   async fetch(request, env, ctx) {
     try {
       if (request.method === "OPTIONS") {
-        return corsResponse(new Response(null, { status: 204 }));
+        return corsResponse(new Response(null, { status: 204 }), request);
       }
 
       const url = new URL(request.url);
@@ -23,7 +23,8 @@ export default {
               hint: "Use /api/health or /health"
             }
           },
-          200
+          200,
+          request
         );
       }
       const method = request.method.toUpperCase();
@@ -51,7 +52,8 @@ export default {
               },
               meta: { retryAfterSeconds: rate.retryAfterSeconds }
             },
-            429
+            429,
+            request
           );
         }
       }
@@ -61,7 +63,7 @@ export default {
           const turnstileToken = request.headers.get("X-Turnstile-Token");
           const verified = await verifyTurnstile(turnstileToken, ip, env);
           if (!verified) {
-            return corsJson({ success: false, error: { code: "BOT_CHECK_FAILED", message: "Challenge failed" } }, 403);
+            return corsJson({ success: false, error: { code: "BOT_CHECK_FAILED", message: "Challenge failed" } }, 403, request);
           }
         }
       }
@@ -109,7 +111,8 @@ export default {
             "X-Content-Type-Options": "nosniff",
             "Referrer-Policy": "no-referrer"
           }
-        })
+        }),
+        request
       );
     } catch (error) {
       return corsJson(
@@ -120,7 +123,8 @@ export default {
             message: error && error.message ? error.message : "Unexpected worker failure"
           }
         },
-        500
+        500,
+        request
       );
     }
   }
@@ -235,19 +239,27 @@ async function safeJson(request) {
   }
 }
 
-function corsResponse(response) {
+function corsResponse(response, request) {
+  const requestedHeaders = request ? request.headers.get("Access-Control-Request-Headers") : "";
+  const allowHeaders = requestedHeaders && requestedHeaders.trim()
+    ? requestedHeaders
+    : "Authorization, Content-Type, X-App-Version, X-Turnstile-Token";
+
   response.headers.set("Access-Control-Allow-Origin", "*");
-  response.headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-App-Version, X-Turnstile-Token");
-  response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", allowHeaders);
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD");
+  response.headers.set("Access-Control-Max-Age", "86400");
+  response.headers.set("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers");
   return response;
 }
 
-function corsJson(payload, status) {
+function corsJson(payload, status, request) {
   return corsResponse(
     new Response(JSON.stringify(payload), {
       status,
       headers: { "Content-Type": "application/json; charset=utf-8" }
-    })
+    }),
+    request
   );
 }
 
