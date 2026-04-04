@@ -4,7 +4,7 @@ compatibility_date = "2026-04-02"
 
 [vars]
 APP_VERSION = "0.1.0"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNq9ql0gaJ7zEmzeswvrdg9WyUcIVYzJP-eREZJprgrklZLBpFyepGdj2qRSfU5bBq9A/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9-TAaTl8-JA05WLpwCF5iY89TGvHNUvELLL2YhqoDBEmFk7Xj6QrB0IbLKzrRP-bRzA/exec"
 # FRONTEND_URL = "https://your-project.pages.dev"
 
 # Configure in Cloudflare dashboard as environment variables/secrets:
