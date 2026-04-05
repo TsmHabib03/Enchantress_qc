@@ -148,8 +148,12 @@
       persistSession(data);
 
       var role = String((data && data.user && data.user.role) || "").toUpperCase();
-      if (role === "ADMIN" || role === "STAFF") {
+      if (role === "ADMIN") {
         window.location.replace("admin.html");
+        return;
+      }
+      if (role === "STAFF") {
+        window.location.replace("staff.html");
         return;
       }
 

@@ -483,6 +483,15 @@ function updateUserRoleAsAdmin_(payload, session) {
   }
 
   var currentRole = normalizeRole_(targetUser.role || "CUSTOMER");
+  var beforeSnapshot = {
+    userId: targetUser.userId,
+    fullName: targetUser.fullName || "",
+    email: targetUser.email || "",
+    role: currentRole,
+    active: String(targetUser.active) !== "false",
+    department: targetUser.department || ""
+  };
+
   if (currentRole === targetRole) {
     return {
       userId: targetUser.userId,
@@ -491,14 +500,27 @@ function updateUserRoleAsAdmin_(payload, session) {
     };
   }
 
+  var updatedAt = nowIso_();
+
   updateRowById_(SHEETS.USERS, "userId", targetUser.userId, {
     role: targetRole,
-    updatedAt: nowIso_()
+    updatedAt: updatedAt
   });
 
+  var afterSnapshot = {
+    userId: targetUser.userId,
+    fullName: targetUser.fullName || "",
+    email: targetUser.email || "",
+    role: targetRole,
+    active: String(targetUser.active) !== "false",
+    department: targetUser.department || "",
+    updatedAt: updatedAt
+  };
+
   logEvent_("INFO", "ADMIN_UPDATE_USER_ROLE", "User", targetUser.userId, session.email, {
-    fromRole: currentRole,
-    toRole: targetRole
+    changedByUserId: session.userId,
+    before: beforeSnapshot,
+    after: afterSnapshot
   });
 
   return {
@@ -763,19 +785,49 @@ function assignAppointmentStaffAsAdmin_(payload, session) {
     throw new Error("Staff user not found or invalid");
   }
 
+  var previousAssignedStaffId = String(appointment.assignedStaffId || appointment.staffId || "");
+  var previousStaff = getUserById_(previousAssignedStaffId);
+
+  if (String(previousAssignedStaffId) === String(staff.userId)) {
+    return {
+      appointmentId: payload.appointmentId,
+      assignedStaffId: staff.userId,
+      changed: false
+    };
+  }
+
+  var updatedAt = nowIso_();
+
   updateRowById_(SHEETS.APPOINTMENTS, "appointmentId", payload.appointmentId, {
     assignedStaffId: staff.userId,
     staffId: staff.userId,
-    updatedAt: nowIso_()
+    updatedAt: updatedAt
   });
 
   logEvent_("INFO", "APPOINTMENT_ASSIGN_STAFF", "Appointment", payload.appointmentId, session.email, {
-    staffUserId: staff.userId
+    changedByUserId: session.userId,
+    appointment: {
+      appointmentId: payload.appointmentId,
+      date: appointment.date,
+      startTime: appointment.startTime,
+      endTime: appointment.endTime,
+      status: appointment.status
+    },
+    before: {
+      assignedStaffId: previousAssignedStaffId,
+      assignedStaffName: previousStaff ? previousStaff.fullName : ""
+    },
+    after: {
+      assignedStaffId: staff.userId,
+      assignedStaffName: staff.fullName || ""
+    },
+    updatedAt: updatedAt
   });
 
   return {
     appointmentId: payload.appointmentId,
-    assignedStaffId: staff.userId
+    assignedStaffId: staff.userId,
+    changed: true
   };
 }
 

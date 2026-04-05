@@ -4,7 +4,7 @@ compatibility_date = "2026-04-02"
 
 [vars]
 APP_VERSION = "0.1.0"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxtl01UEJTT0hYxEntOXbh8STXNWKtb4GZmEihQJeZ858P9gDjgZPbRE6YQ5iwahNdxig/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxya5sM9exQKwDWOfMXUOzWflWDspSbXm6iHE1bCjE4WZtnF6VstSm_pajmTtUJaWVDOg/exec"
 FRONTEND_URL = "https://production.enchantress-qc-frontend.pages.dev/"
 
 # Configure through dashboard or wrangler secret:

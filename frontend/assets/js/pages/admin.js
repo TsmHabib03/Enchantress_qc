@@ -47,6 +47,10 @@
     window.location.replace("index.html#booking-panel");
   }
 
+  function redirectToStaff() {
+    window.location.replace("staff.html");
+  }
+
   function applyRoleCards(role) {
     roleCards.forEach(function (card) {
       var cardRole = card.getAttribute("data-admin-role");
@@ -271,7 +275,12 @@
     }
 
     var role = normalizeRole(session.user.role);
-    if (role !== "STAFF" && role !== "ADMIN") {
+    if (role === "STAFF") {
+      redirectToStaff();
+      return null;
+    }
+
+    if (role !== "ADMIN") {
       redirectToLanding("role_forbidden");
       return null;
     }
