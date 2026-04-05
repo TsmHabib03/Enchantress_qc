@@ -92,6 +92,63 @@
         </div>
       </section>
 
+      <section class="card border-0 mb-4 d-none" data-admin-only>
+        <div class="card-body p-4 p-lg-5">
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
+            <h2 class="section-title mb-0">Staff Onboarding</h2>
+            <span class="admin-schedule-chip">Admin Only</span>
+          </div>
+          <form id="create-staff-form" class="row g-3" novalidate>
+            <div class="col-md-6">
+              <label class="form-label" for="staffFullName">Full Name</label>
+              <input id="staffFullName" name="fullName" class="form-control" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="staffEmail">Email</label>
+              <input id="staffEmail" name="email" type="email" class="form-control" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="staffPhone">Phone</label>
+              <input id="staffPhone" name="phone" class="form-control" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="staffPassword">Temporary Password</label>
+              <input id="staffPassword" name="password" type="password" minlength="8" class="form-control" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="staffDepartment">Department</label>
+              <input id="staffDepartment" name="department" class="form-control" placeholder="Nail Care" />
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary cta-button" type="submit">Create Staff Account</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="card border-0 mb-4 d-none" data-admin-only>
+        <div class="card-body p-4 p-lg-5">
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
+            <h2 class="section-title mb-0">User Role Management</h2>
+            <span class="admin-schedule-chip">Admin Only</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table admin-table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Department</th>
+                  <th>Role</th>
+                  <th>Save</th>
+                </tr>
+              </thead>
+              <tbody id="users-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section class="card admin-schedule-card border-0">
         <div class="card-body p-4 p-lg-5">
           <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
@@ -106,6 +163,7 @@
                   <th>Customer</th>
                   <th>Service</th>
                   <th>Staff</th>
+                  <th>Assign</th>
                   <th>Status</th>
                 </tr>
               </thead>

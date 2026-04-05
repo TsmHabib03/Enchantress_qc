@@ -355,6 +355,159 @@ function getUserById_(userId) {
   return null;
 }
 
+function getUserByEmail_(email) {
+  var normalizedEmail = normalizeEmail_(email || "");
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  var users = getSheetRows_(SHEETS.USERS);
+  for (var i = 0; i < users.length; i += 1) {
+    if (normalizeEmail_(users[i].email) === normalizedEmail) {
+      return users[i];
+    }
+  }
+
+  return null;
+}
+
+function listUsersForAdmin_(session, includeInactive) {
+  requireRole_(session, ["ADMIN"]);
+
+  return getSheetRows_(SHEETS.USERS)
+    .filter(function (user) {
+      if (includeInactive) {
+        return true;
+      }
+      return String(user.active) !== "false";
+    })
+    .map(function (user) {
+      return {
+        userId: user.userId,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        role: normalizeRole_(user.role || "CUSTOMER"),
+        active: String(user.active) !== "false",
+        department: user.department || "",
+        createdAt: user.createdAt || "",
+        updatedAt: user.updatedAt || "",
+        lastLoginAt: user.lastLoginAt || ""
+      };
+    });
+}
+
+function listStaffUsers_(session) {
+  requireRole_(session, ["ADMIN"]);
+
+  return listUsersForAdmin_(session, false)
+    .filter(function (user) {
+      return normalizeRole_(user.role) === "STAFF";
+    })
+    .sort(function (a, b) {
+      return String(a.fullName || "").localeCompare(String(b.fullName || ""));
+    });
+}
+
+function createStaffUserAsAdmin_(payload, session) {
+  requireRole_(session, ["ADMIN"]);
+  requireFields_(payload, ["fullName", "phone", "email", "password"]);
+
+  var fullName = sanitizeForSheet_(payload.fullName);
+  var phone = sanitizeForSheet_(payload.phone);
+  var email = normalizeEmail_(payload.email);
+  var password = String(payload.password || "");
+  var department = sanitizeForSheet_(payload.department || "");
+
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    throw new Error("Invalid email format");
+  }
+
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters");
+  }
+
+  var existingUser = getUserByEmail_(email);
+  if (existingUser && String(existingUser.active) !== "false") {
+    throw new Error("Email already registered");
+  }
+
+  var userId = generateId_("USR");
+  var ts = nowIso_();
+
+  appendSheetRow_(SHEETS.USERS, {
+    userId: userId,
+    fullName: fullName,
+    email: email,
+    phone: phone,
+    passwordHash: hashPassword_(password),
+    role: "STAFF",
+    active: true,
+    createdAt: ts,
+    updatedAt: ts,
+    lastLoginAt: "",
+    deletedAt: "",
+    department: department
+  });
+
+  logEvent_("INFO", "ADMIN_CREATE_STAFF", "User", userId, session.email, {
+    role: "STAFF",
+    department: department
+  });
+
+  return {
+    userId: userId,
+    fullName: fullName,
+    email: email,
+    phone: phone,
+    role: "STAFF",
+    department: department,
+    active: true
+  };
+}
+
+function updateUserRoleAsAdmin_(payload, session) {
+  requireRole_(session, ["ADMIN"]);
+  requireFields_(payload, ["userId", "role"]);
+
+  var targetUserId = sanitizeForSheet_(payload.userId);
+  var targetRole = normalizeRole_(payload.role);
+
+  if (String(session.userId) === String(targetUserId) && targetRole !== "ADMIN") {
+    throw new Error("Admin cannot remove own admin role");
+  }
+
+  var targetUser = getUserById_(targetUserId);
+  if (!targetUser) {
+    throw new Error("User not found or inactive");
+  }
+
+  var currentRole = normalizeRole_(targetUser.role || "CUSTOMER");
+  if (currentRole === targetRole) {
+    return {
+      userId: targetUser.userId,
+      role: currentRole,
+      changed: false
+    };
+  }
+
+  updateRowById_(SHEETS.USERS, "userId", targetUser.userId, {
+    role: targetRole,
+    updatedAt: nowIso_()
+  });
+
+  logEvent_("INFO", "ADMIN_UPDATE_USER_ROLE", "User", targetUser.userId, session.email, {
+    fromRole: currentRole,
+    toRole: targetRole
+  });
+
+  return {
+    userId: targetUser.userId,
+    role: targetRole,
+    changed: true
+  };
+}
+
 function isAppointmentVisibleToSession_(session, appointmentRow, customerRow) {
   if (!session) {
     return false;

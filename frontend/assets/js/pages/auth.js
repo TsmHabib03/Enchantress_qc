@@ -1,6 +1,7 @@
 (function () {
   var modal = document.getElementById("auth-modal");
   var openButton = document.getElementById("open-auth-modal");
+  var logoutButton = document.getElementById("logout-button");
   var closeButton = document.getElementById("auth-close");
   var loginForm = document.getElementById("login-form");
   var registerForm = document.getElementById("register-form");
@@ -69,6 +70,17 @@
     authStatus.textContent = "Logged in as " + sessionCache.user.fullName + " (" + sessionCache.user.role + ")";
   }
 
+  function syncAuthButtons() {
+    var isLoggedIn = !!(sessionCache && sessionCache.user);
+
+    if (openButton) {
+      openButton.classList.toggle("d-none", isLoggedIn);
+    }
+    if (logoutButton) {
+      logoutButton.classList.toggle("d-none", !isLoggedIn);
+    }
+  }
+
   function openModal() {
     if (!modal) {
       return;
@@ -114,6 +126,7 @@
     window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     sessionCache = session;
     syncAuthStatusLabel();
+    syncAuthButtons();
     dispatchSessionChange();
   }
 
@@ -133,6 +146,13 @@
     try {
       var data = await window.apiClient.post("/auth/login", payload, { retries: 0 });
       persistSession(data);
+
+      var role = String((data && data.user && data.user.role) || "").toUpperCase();
+      if (role === "ADMIN" || role === "STAFF") {
+        window.location.replace("admin.html");
+        return;
+      }
+
       showToast("success", "Login successful.");
       setTimeout(closeModal, 450);
     } catch (error) {
@@ -169,6 +189,7 @@
   function restoreSession() {
     sessionCache = parseStoredSession();
     syncAuthStatusLabel();
+    syncAuthButtons();
     dispatchSessionChange();
   }
 
@@ -196,12 +217,20 @@
       sessionCache = null;
       window.localStorage.removeItem(SESSION_KEY);
       syncAuthStatusLabel();
+      syncAuthButtons();
+      closeModal();
       dispatchSessionChange();
     }
   };
 
   if (openButton) {
     openButton.addEventListener("click", openModal);
+  }
+
+  if (logoutButton) {
+    logoutButton.addEventListener("click", function () {
+      window.authSession.clearSession();
+    });
   }
 
   if (closeButton) {

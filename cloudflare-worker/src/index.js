@@ -1,4 +1,5 @@
 const limiterStore = new Map();
+const DEFAULT_FRONTEND_URL = "https://production.enchantress-qc-frontend.pages.dev/";
 
 export default {
   async fetch(request, env, ctx) {
@@ -284,17 +285,22 @@ function getRatePolicy(path, method) {
 }
 
 function getFrontendRedirectTarget(frontendUrl, requestUrl) {
-  if (!frontendUrl) {
-    return null;
+  const candidates = [frontendUrl, DEFAULT_FRONTEND_URL];
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    try {
+      const target = new URL(candidate);
+      if (target.origin === requestUrl.origin && target.pathname === requestUrl.pathname) {
+        continue;
+      }
+      return target.toString();
+    } catch (error) {
+      continue;
+    }
   }
 
-  try {
-    const target = new URL(frontendUrl);
-    if (target.origin === requestUrl.origin && target.pathname === requestUrl.pathname) {
-      return null;
-    }
-    return target.toString();
-  } catch (error) {
-    return null;
-  }
+  return null;
 }

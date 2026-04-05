@@ -3,10 +3,15 @@ function routeGatewayEnvelope_(e) {
     var envelope = parseGatewayEnvelope_(e);
     verifyGatewayEnvelope_(envelope);
 
-    var method = (envelope.method || "GET").toUpperCase();
     var path = normalizePath_(envelope.path || "/health");
     var query = envelope.query || {};
     var body = envelope.body || {};
+    var method = String(envelope.method || "").toUpperCase();
+    var hasBody = body && Object.keys(body).length > 0;
+
+    if (!method) {
+      method = hasBody ? "POST" : "GET";
+    }
 
     function optionalSession() {
       try {
@@ -63,6 +68,14 @@ function routeGatewayEnvelope_(e) {
       return jsonSuccess_(loginUser_(body));
     }
 
+    if (path === "/auth/register" && method === "GET" && hasBody) {
+      return jsonSuccess_(registerUser_(body));
+    }
+
+    if (path === "/auth/login" && method === "GET" && hasBody) {
+      return jsonSuccess_(loginUser_(body));
+    }
+
     if (path === "/appointments/list" && method === "GET") {
       var dateFilter = query.date;
       var listSession = isRbacEnabled_() ? requiredSession() : optionalSession();
@@ -77,6 +90,27 @@ function routeGatewayEnvelope_(e) {
     if (path === "/appointments/assign-staff" && method === "POST") {
       var assignSession = requiredSession();
       return jsonSuccess_(assignAppointmentStaffAsAdmin_(body, assignSession));
+    }
+
+    if (path === "/staff/list" && method === "GET") {
+      var staffSession = requiredSession();
+      return jsonSuccess_({ staff: listStaffUsers_(staffSession) });
+    }
+
+    if (path === "/staff/create" && method === "POST") {
+      var createStaffSession = requiredSession();
+      return jsonSuccess_(createStaffUserAsAdmin_(body, createStaffSession));
+    }
+
+    if (path === "/users/list" && method === "GET") {
+      var usersSession = requiredSession();
+      var includeInactive = String(query.includeInactive || "").toLowerCase() === "true";
+      return jsonSuccess_({ users: listUsersForAdmin_(usersSession, includeInactive) });
+    }
+
+    if (path === "/users/role/update" && method === "POST") {
+      var roleSession = requiredSession();
+      return jsonSuccess_(updateUserRoleAsAdmin_(body, roleSession));
     }
 
     if (path === "/customers/list" && method === "GET") {
@@ -139,10 +173,31 @@ function normalizePath_(path) {
   if (trimmed === "") {
     return "/";
   }
-  if (trimmed.charAt(0) !== "/") {
-    return "/" + trimmed;
+
+  var normalized = trimmed;
+
+  if (normalized.charAt(0) !== "/") {
+    normalized = "/" + normalized;
   }
-  return trimmed;
+
+  // Normalize route variations coming from proxies or differing clients.
+  normalized = normalized.replace(/\/+/g, "/");
+
+  if (normalized.length > 1 && normalized.charAt(normalized.length - 1) === "/") {
+    normalized = normalized.slice(0, -1);
+  }
+
+  if (normalized === "/api") {
+    return "/";
+  }
+  if (normalized.indexOf("/api/") === 0) {
+    normalized = normalized.slice(4);
+    if (normalized === "") {
+      normalized = "/";
+    }
+  }
+
+  return normalized;
 }
 
 function jsonSuccess_(data) {

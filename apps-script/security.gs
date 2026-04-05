@@ -31,12 +31,23 @@ function verifyGatewayEnvelope_(envelope) {
   }
 
   var secret = getRequiredProperty_("SHARED_SECRET");
-  var payloadText = JSON.stringify(envelope.payload || {});
-  var base = String(envelope.timestamp) + "." + envelope.nonce + "." + payloadText;
-  var expected = toHex_(Utilities.computeHmacSha256Signature(base, secret));
+  var payload = envelope.payload || {};
+  var providedSignature = String(envelope.signature || "").toLowerCase();
 
-  if (expected !== envelope.signature) {
-    throw new Error("Invalid signature");
+  // Canonical JSON makes signatures stable across runtimes even when key order differs.
+  var canonicalPayloadText = canonicalJson_(payload);
+  var canonicalBase = String(envelope.timestamp) + "." + envelope.nonce + "." + canonicalPayloadText;
+  var canonicalExpected = toHex_(Utilities.computeHmacSha256Signature(canonicalBase, secret)).toLowerCase();
+
+  if (canonicalExpected !== providedSignature) {
+    // Backward compatibility for older worker payload serialization.
+    var legacyPayloadText = JSON.stringify(payload);
+    var legacyBase = String(envelope.timestamp) + "." + envelope.nonce + "." + legacyPayloadText;
+    var legacyExpected = toHex_(Utilities.computeHmacSha256Signature(legacyBase, secret)).toLowerCase();
+
+    if (legacyExpected !== providedSignature) {
+      throw new Error("Invalid signature");
+    }
   }
 
   var p = envelope.payload || {};
@@ -45,6 +56,35 @@ function verifyGatewayEnvelope_(envelope) {
   envelope.query = p.query;
   envelope.body = p.body;
   envelope.headers = p.headers || {};
+}
+
+function canonicalJson_(value) {
+  if (value === null) {
+    return "null";
+  }
+
+  var type = typeof value;
+
+  if (type === "string" || type === "number" || type === "boolean") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    var items = value.map(function (item) {
+      return canonicalJson_(item);
+    });
+    return "[" + items.join(",") + "]";
+  }
+
+  var keys = Object.keys(value).sort();
+  var parts = [];
+
+  for (var i = 0; i < keys.length; i += 1) {
+    var key = keys[i];
+    parts.push(JSON.stringify(key) + ":" + canonicalJson_(value[key]));
+  }
+
+  return "{" + parts.join(",") + "}";
 }
 
 function getSessionTokenSecret_() {
