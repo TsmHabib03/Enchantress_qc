@@ -139,6 +139,32 @@ function loginUser_(payload) {
   }
 
   var role = normalizeRole_(user.role || "CUSTOMER");
+  var autoPromoteReason = "";
+
+  if (role === "CUSTOMER") {
+    if (!hasActiveAdminUser_()) {
+      role = "ADMIN";
+      autoPromoteReason = "initial_admin_bootstrap";
+    } else if (isEmailInAdminAllowlist_(email)) {
+      role = "ADMIN";
+      autoPromoteReason = "admin_allowlist";
+    }
+  }
+
+  if (autoPromoteReason) {
+    updateRowById_(SHEETS.USERS, "userId", user.userId, {
+      role: "ADMIN",
+      updatedAt: nowIso_()
+    });
+    user.role = "ADMIN";
+
+    logEvent_("INFO", "AUTH_AUTO_PROMOTE_ADMIN", "User", user.userId, email, {
+      reason: autoPromoteReason,
+      previousRole: "CUSTOMER",
+      newRole: "ADMIN"
+    });
+  }
+
   var token = generateSessionToken_(user.userId, role, user.email);
   var ts = nowIso_();
 
@@ -160,6 +186,25 @@ function loginUser_(payload) {
       role: role
     }
   };
+}
+
+function isEmailInAdminAllowlist_(email) {
+  var target = normalizeEmail_(email || "");
+  if (!target) {
+    return false;
+  }
+
+  var raw = PropertiesService.getScriptProperties().getProperty("ADMIN_EMAILS") || "";
+  var allowed = raw
+    .split(",")
+    .map(function (value) {
+      return normalizeEmail_(value || "");
+    })
+    .filter(function (value) {
+      return value;
+    });
+
+  return allowed.indexOf(target) >= 0;
 }
 
 function hasActiveAdminUser_() {

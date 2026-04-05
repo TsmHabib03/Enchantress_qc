@@ -11,6 +11,42 @@
   var sessionCache = null;
   var SESSION_KEY = "enchantressSession";
 
+  function getCurrentPageName() {
+    var path = String(window.location.pathname || "");
+    var segments = path.split("/");
+    var last = segments[segments.length - 1] || "index.html";
+    return last.toLowerCase();
+  }
+
+  function getRoleLandingPage(role) {
+    var normalized = String(role || "").trim().toUpperCase();
+    if (normalized === "ADMIN") {
+      return "admin.html";
+    }
+    if (normalized === "STAFF") {
+      return "staff.html";
+    }
+    return "";
+  }
+
+  function applyRoleRedirect(session) {
+    if (!session || !session.user) {
+      return;
+    }
+
+    var targetPage = getRoleLandingPage(session.user.role);
+    if (!targetPage) {
+      return;
+    }
+
+    var currentPage = getCurrentPageName();
+    if (currentPage !== "index.html") {
+      return;
+    }
+
+    window.location.replace(targetPage);
+  }
+
   function showToast(type, message) {
     if (!authToast) {
       return;
@@ -147,7 +183,7 @@
       var data = await window.apiClient.post("/auth/login", payload, { retries: 0 });
       persistSession(data);
 
-      var role = String((data && data.user && data.user.role) || "").toUpperCase();
+      var role = String((data && data.user && data.user.role) || "").trim().toUpperCase();
       if (role === "ADMIN") {
         window.location.replace("admin.html");
         return;
@@ -208,6 +244,7 @@
     syncAuthStatusLabel();
     syncAuthButtons();
     dispatchSessionChange();
+    applyRoleRedirect(sessionCache);
   }
 
   window.authSession = {
@@ -249,6 +286,12 @@
       window.authSession.clearSession();
     });
   }
+
+  window.addEventListener("enchantress:session-changed", function (event) {
+    var detail = event && event.detail ? event.detail : null;
+    var session = detail ? detail.session : null;
+    applyRoleRedirect(session);
+  });
 
   if (closeButton) {
     closeButton.addEventListener("click", closeModal);
