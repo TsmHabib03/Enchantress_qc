@@ -1,2 +1,5 @@
 /admin /admin.html 200
+/admin.html /admin.html 200
+/staff /staff.html 200
+/staff.html /staff.html 200
 / /index.html 200

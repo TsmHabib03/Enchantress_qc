@@ -42,7 +42,7 @@
   }
 
   function redirectToAdmin() {
-    window.location.replace("admin.html");
+    window.location.replace("/admin");
   }
 
   function setAccessStatus(message) {

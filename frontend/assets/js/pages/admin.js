@@ -48,7 +48,7 @@
   }
 
   function redirectToStaff() {
-    window.location.replace("staff.html");
+    window.location.replace("/staff");
   }
 
   function applyRoleCards(role) {
