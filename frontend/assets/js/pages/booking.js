@@ -736,6 +736,16 @@
   }
 
   async function init() {
+    var role = getRole();
+    if (role === "ADMIN") {
+      window.location.replace("/admin");
+      return;
+    }
+    if (role === "STAFF") {
+      window.location.replace("/staff");
+      return;
+    }
+
     dateInput.value = formatDate(Date.now());
     form.addEventListener("submit", submitBooking);
     dateInput.addEventListener("change", function () {
