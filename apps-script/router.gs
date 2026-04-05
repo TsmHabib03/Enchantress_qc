@@ -35,6 +35,10 @@ function routeGatewayEnvelope_(e) {
       return jsonSuccess_({ initialized: true });
     }
 
+    if (path === "/setup/bootstrap-admin" && method === "POST") {
+      return jsonSuccess_(bootstrapAdminUser_(body));
+    }
+
     if (path === "/services/list" && method === "GET") {
       return jsonSuccess_({ services: listActiveServices_() });
     }
@@ -66,6 +70,11 @@ function routeGatewayEnvelope_(e) {
 
     if (path === "/auth/login" && method === "POST") {
       return jsonSuccess_(loginUser_(body));
+    }
+
+    if (path === "/auth/claim-initial-admin" && method === "POST") {
+      var claimSession = requiredSession();
+      return jsonSuccess_(claimInitialAdminForSession_(claimSession));
     }
 
     if (path === "/auth/register" && method === "GET" && hasBody) {

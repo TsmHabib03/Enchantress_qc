@@ -157,6 +157,19 @@
         return;
       }
 
+      if (role === "CUSTOMER") {
+        try {
+          var claim = await window.apiClient.post("/auth/claim-initial-admin", {}, { retries: 0 });
+          if (claim && claim.claimed && claim.token && claim.user) {
+            persistSession(claim);
+            window.location.replace("admin.html");
+            return;
+          }
+        } catch (claimError) {
+          // Ignore when initial admin was already claimed.
+        }
+      }
+
       showToast("success", "Login successful.");
       setTimeout(closeModal, 450);
     } catch (error) {

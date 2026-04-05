@@ -161,3 +161,142 @@ function loginUser_(payload) {
     }
   };
 }
+
+function hasActiveAdminUser_() {
+  var users = getSheetRows_(SHEETS.USERS);
+  for (var i = 0; i < users.length; i += 1) {
+    if (String(users[i].active) !== "false" && normalizeRole_(users[i].role || "") === "ADMIN") {
+      return true;
+    }
+  }
+  return false;
+}
+
+function claimInitialAdminForSession_(session) {
+  ensureSchema_();
+  requireRole_(session, ["CUSTOMER"]);
+
+  if (hasActiveAdminUser_()) {
+    throw new Error("Initial admin already exists");
+  }
+
+  var user = getUserById_(session.userId);
+  if (!user) {
+    throw new Error("User not found or inactive");
+  }
+
+  var ts = nowIso_();
+  var email = normalizeEmail_(user.email);
+
+  updateRowById_(SHEETS.USERS, "userId", user.userId, {
+    role: "ADMIN",
+    updatedAt: ts
+  });
+
+  logEvent_("INFO", "AUTH_CLAIM_INITIAL_ADMIN", "User", user.userId, email, {
+    fromRole: normalizeRole_(user.role || "CUSTOMER"),
+    toRole: "ADMIN"
+  });
+
+  return {
+    claimed: true,
+    token: generateSessionToken_(user.userId, "ADMIN", email),
+    user: {
+      userId: user.userId,
+      fullName: user.fullName,
+      email: email,
+      role: "ADMIN"
+    }
+  };
+}
+
+function bootstrapAdminUser_(payload) {
+  ensureSchema_();
+  requireFields_(payload, ["fullName", "phone", "email", "password", "bootstrapToken"]);
+
+  var expectedToken = PropertiesService.getScriptProperties().getProperty("BOOTSTRAP_ADMIN_TOKEN");
+  if (!expectedToken) {
+    throw new Error("Missing script property: BOOTSTRAP_ADMIN_TOKEN");
+  }
+
+  var providedToken = String(payload.bootstrapToken || "");
+  if (providedToken !== String(expectedToken)) {
+    throw new Error("Invalid bootstrap token");
+  }
+
+  var allowWhenAdminExists = String(payload.allowWhenAdminExists || "").toLowerCase() === "true";
+  if (hasActiveAdminUser_() && !allowWhenAdminExists) {
+    throw new Error("An active admin already exists");
+  }
+
+  var fullName = sanitizeForSheet_(payload.fullName);
+  var phone = sanitizeForSheet_(payload.phone);
+  var email = normalizeEmail_(payload.email);
+  var password = String(payload.password || "");
+  var department = sanitizeForSheet_(payload.department || "");
+
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    throw new Error("Invalid email format");
+  }
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters");
+  }
+
+  var existing = getUserByEmail_(email);
+  var ts = nowIso_();
+
+  if (existing) {
+    updateRowById_(SHEETS.USERS, "userId", existing.userId, {
+      fullName: fullName,
+      phone: phone,
+      passwordHash: hashPassword_(password),
+      role: "ADMIN",
+      active: true,
+      deletedAt: "",
+      department: department,
+      updatedAt: ts
+    });
+
+    logEvent_("INFO", "ADMIN_BOOTSTRAP", "User", existing.userId, email, {
+      action: "promote_or_reset",
+      role: "ADMIN"
+    });
+
+    return {
+      created: false,
+      userId: existing.userId,
+      fullName: fullName,
+      email: email,
+      role: "ADMIN"
+    };
+  }
+
+  var userId = generateId_("USR");
+  appendSheetRow_(SHEETS.USERS, {
+    userId: userId,
+    fullName: fullName,
+    email: email,
+    phone: phone,
+    passwordHash: hashPassword_(password),
+    role: "ADMIN",
+    active: true,
+    createdAt: ts,
+    updatedAt: ts,
+    lastLoginAt: "",
+    deletedAt: "",
+    department: department
+  });
+
+  logEvent_("INFO", "ADMIN_BOOTSTRAP", "User", userId, email, {
+    action: "create",
+    role: "ADMIN"
+  });
+
+  return {
+    created: true,
+    userId: userId,
+    fullName: fullName,
+    email: email,
+    role: "ADMIN"
+  };
+}
