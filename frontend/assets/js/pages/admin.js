@@ -2,12 +2,9 @@
   var refreshButton = document.getElementById("refresh");
   var dateInput = document.getElementById("dashboard-date");
   var tbody = document.getElementById("appointments-body");
-  var usersBody = document.getElementById("users-body");
-  var createStaffForm = document.getElementById("create-staff-form");
+  var customersBody = document.getElementById("customers-body");
   var toast = document.getElementById("admin-toast");
   var accessStatus = document.getElementById("admin-access-status");
-  var roleCards = Array.prototype.slice.call(document.querySelectorAll("[data-admin-role]"));
-  var adminOnlySections = Array.prototype.slice.call(document.querySelectorAll("[data-admin-only]"));
   var currentRole = null;
   var staffOptions = [];
 
@@ -51,33 +48,13 @@
     window.location.replace("/staff");
   }
 
-  function applyRoleCards(role) {
-    roleCards.forEach(function (card) {
-      var cardRole = card.getAttribute("data-admin-role");
-      var visible = cardRole === role || (role === "ADMIN" && cardRole === "STAFF");
-      card.classList.toggle("d-none", !visible);
-    });
-  }
-
-  function toggleAdminOnlySections(role) {
-    var isAdmin = role === "ADMIN";
-    adminOnlySections.forEach(function (section) {
-      section.classList.toggle("d-none", !isAdmin);
-    });
-  }
-
   function setAccessStatus(role) {
     if (!accessStatus) {
       return;
     }
 
-    if (role === "STAFF") {
-      accessStatus.textContent = "Staff access granted. You can see your assigned appointments and dashboard metrics.";
-      return;
-    }
-
     if (role === "ADMIN") {
-      accessStatus.textContent = "Admin access granted. You can manage staff onboarding, role assignment, and appointment staff assignment.";
+      accessStatus.textContent = "Admin access granted. You can monitor customers and assign them to registered staff.";
     }
   }
 
@@ -136,6 +113,34 @@
     return formatDateForTimezone(new Date(), window.APP_CONFIG && window.APP_CONFIG.TIMEZONE);
   }
 
+  function getStaffNameById(staffId) {
+    var normalizedId = String(staffId || "").trim();
+    if (!normalizedId) {
+      return "Unassigned";
+    }
+
+    for (var i = 0; i < staffOptions.length; i += 1) {
+      if (String(staffOptions[i].userId) === normalizedId) {
+        return staffOptions[i].fullName || "Unassigned";
+      }
+    }
+
+    return "Unknown staff";
+  }
+
+  function buildStaffSelectOptions(selectedId) {
+    var normalizedSelected = String(selectedId || "");
+    var options = ["<option value=''>Choose staff</option>"];
+
+    staffOptions.forEach(function (staff) {
+      var staffId = escapeHtml(staff.userId);
+      var selected = normalizedSelected === String(staff.userId) ? " selected" : "";
+      options.push("<option value='" + staffId + "'" + selected + ">" + escapeHtml(staff.fullName) + "</option>");
+    });
+
+    return options.join("");
+  }
+
   function renderAppointments(appointments) {
     tbody.innerHTML = "";
 
@@ -154,81 +159,72 @@
           assignCell = "<span class='text-muted'>No staff</span>";
         } else {
           var selectedId = String(row.assignedStaffId || "");
-          var options = ["<option value=''>Choose staff</option>"];
-
-          staffOptions.forEach(function (staff) {
-            var staffId = escapeHtml(staff.userId);
-            var selected = selectedId === String(staff.userId) ? " selected" : "";
-            options.push("<option value='" + staffId + "'" + selected + ">" + escapeHtml(staff.fullName) + "</option>");
-          });
-
           assignCell =
             "<select class='form-select form-select-sm js-assign-staff' data-appointment-id='" +
             escapeHtml(row.appointmentId) +
             "' data-current-value='" +
             escapeHtml(selectedId) +
             "'>" +
-            options.join("") +
+            buildStaffSelectOptions(selectedId) +
             "</select>";
         }
       }
+
+      var resolvedStaffName = row.staffName || getStaffNameById(row.assignedStaffId || row.staffId);
 
       var tr = document.createElement("tr");
       tr.innerHTML =
         "<td>" + escapeHtml(row.startTime) + "</td>" +
         "<td>" + escapeHtml(row.customerName) + "</td>" +
         "<td>" + escapeHtml(row.serviceName) + "</td>" +
-        "<td>" + escapeHtml(row.staffName || "Unassigned") + "</td>" +
+        "<td>" + escapeHtml(resolvedStaffName) + "</td>" +
         "<td>" + assignCell + "</td>" +
         "<td><span class='badge text-bg-light'>" + escapeHtml(row.status) + "</span></td>";
       tbody.appendChild(tr);
     });
   }
 
-  function renderUsers(users) {
-    if (!usersBody) {
+  function renderCustomers(customers) {
+    if (!customersBody) {
       return;
     }
 
-    usersBody.innerHTML = "";
+    customersBody.innerHTML = "";
 
-    if (!users || users.length === 0) {
+    if (!customers || customers.length === 0) {
       var emptyRow = document.createElement("tr");
-      emptyRow.innerHTML = "<td colspan='5' class='text-center text-muted py-3'>No users found.</td>";
-      usersBody.appendChild(emptyRow);
+      emptyRow.innerHTML = "<td colspan='6' class='text-center text-muted py-3'>No customers found.</td>";
+      customersBody.appendChild(emptyRow);
       return;
     }
 
-    var session = getSession();
-    var sessionUserId = session && session.user ? String(session.user.userId || "") : "";
-
-    users.forEach(function (user) {
+    customers.forEach(function (customer) {
       var tr = document.createElement("tr");
-      var userId = String(user.userId || "");
-      var role = normalizeRole(user.role);
-      var isSelf = sessionUserId && sessionUserId === userId;
+      var customerId = String(customer.customerId || "");
+      var selectedStaffId = String(customer.managedBy || "");
+      var currentStaffName = getStaffNameById(selectedStaffId);
+      var assignCell = "<span class='text-muted'>No staff</span>";
+
+      if (staffOptions.length) {
+        assignCell =
+          "<select class='form-select form-select-sm js-assign-customer-staff' data-customer-id='" +
+          escapeHtml(customerId) +
+          "' data-current-value='" +
+          escapeHtml(selectedStaffId) +
+          "'>" +
+          buildStaffSelectOptions(selectedStaffId) +
+          "</select>";
+      }
 
       tr.innerHTML =
-        "<td>" +
-        escapeHtml(user.fullName) +
-        (isSelf ? " <span class='text-muted'>(You)</span>" : "") +
-        "</td>" +
-        "<td>" + escapeHtml(user.email) + "</td>" +
-        "<td>" + escapeHtml(user.department || "-") + "</td>" +
-        "<td>" +
-        "<select class='form-select form-select-sm js-role-select' data-user-id='" +
-        escapeHtml(userId) +
-        "'>" +
-        "<option value='CUSTOMER'" + (role === "CUSTOMER" ? " selected" : "") + ">CUSTOMER</option>" +
-        "<option value='STAFF'" + (role === "STAFF" ? " selected" : "") + ">STAFF</option>" +
-        "<option value='ADMIN'" + (role === "ADMIN" ? " selected" : "") + ">ADMIN</option>" +
-        "</select>" +
-        "</td>" +
-        "<td><button class='btn btn-sm btn-outline-primary js-save-role' type='button' data-user-id='" +
-        escapeHtml(userId) +
-        "'>Save</button></td>";
+        "<td>" + escapeHtml(customer.fullName || "-") + "</td>" +
+        "<td>" + escapeHtml(customer.phone || "-") + "</td>" +
+        "<td>" + escapeHtml(customer.email || "-") + "</td>" +
+        "<td>" + escapeHtml(currentStaffName) + "</td>" +
+        "<td>" + assignCell + "</td>" +
+        "<td><span class='badge text-bg-light'>" + escapeHtml(customer.ownershipModel || "SALON") + "</span></td>";
 
-      usersBody.appendChild(tr);
+      customersBody.appendChild(tr);
     });
   }
 
@@ -236,31 +232,25 @@
     try {
       var date = dateInput && dateInput.value ? dateInput.value : todayDate();
 
-      var requests = [
+      var results = await Promise.all([
         window.apiClient.get("/reports/summary?date=" + encodeURIComponent(date)),
-        window.apiClient.get("/appointments/list?date=" + encodeURIComponent(date))
-      ];
+        window.apiClient.get("/appointments/list?date=" + encodeURIComponent(date)),
+        window.apiClient.get("/staff/list"),
+        window.apiClient.get("/customers/list")
+      ]);
 
-      if (currentRole === "ADMIN") {
-        requests.push(window.apiClient.get("/staff/list"));
-        requests.push(window.apiClient.get("/users/list"));
-      }
-
-      var results = await Promise.all(requests);
       var report = results[0];
       var listing = results[1];
+      var staffListing = results[2];
+      var customerListing = results[3];
 
-      if (currentRole === "ADMIN") {
-        staffOptions = (results[2] && results[2].staff) || [];
-        renderUsers((results[3] && results[3].users) || []);
-      } else {
-        staffOptions = [];
-      }
+      staffOptions = (staffListing && staffListing.staff) || [];
 
       document.getElementById("metric-appointments").textContent = report.totalAppointments;
       document.getElementById("metric-completed").textContent = report.completedAppointments;
       document.getElementById("metric-revenue").textContent = "$" + Number(report.estimatedRevenue || 0).toFixed(2);
       renderAppointments(listing.appointments || []);
+      renderCustomers((customerListing && customerListing.customers) || []);
       showToast("success", "Dashboard refreshed");
     } catch (error) {
       showToast("error", error.message);
@@ -288,38 +278,6 @@
     return role;
   }
 
-  async function handleCreateStaffSubmit(event) {
-    event.preventDefault();
-
-    if (currentRole !== "ADMIN") {
-      return;
-    }
-
-    if (!createStaffForm || !createStaffForm.checkValidity()) {
-      if (createStaffForm) {
-        createStaffForm.reportValidity();
-      }
-      return;
-    }
-
-    var payload = {
-      fullName: createStaffForm.fullName.value.trim(),
-      email: createStaffForm.email.value.trim(),
-      phone: createStaffForm.phone.value.trim(),
-      password: createStaffForm.password.value,
-      department: createStaffForm.department.value.trim()
-    };
-
-    try {
-      await window.apiClient.post("/staff/create", payload, { retries: 0 });
-      createStaffForm.reset();
-      showToast("success", "Staff account created successfully.");
-      await refresh();
-    } catch (error) {
-      showToast("error", error.message);
-    }
-  }
-
   async function handleAppointmentAssignChange(event) {
     var target = event.target;
     if (!target || !target.classList.contains("js-assign-staff")) {
@@ -334,7 +292,13 @@
     var staffUserId = String(target.value || "").trim();
     var currentValue = String(target.getAttribute("data-current-value") || "");
 
-    if (!appointmentId || !staffUserId || staffUserId === currentValue) {
+    if (!appointmentId || staffUserId === currentValue) {
+      return;
+    }
+
+    if (!staffUserId) {
+      target.value = currentValue;
+      showToast("error", "Please choose a registered staff member.");
       return;
     }
 
@@ -352,9 +316,9 @@
     }
   }
 
-  async function handleUserRoleSaveClick(event) {
+  async function handleCustomerAssignChange(event) {
     var target = event.target;
-    if (!target || !target.classList.contains("js-save-role")) {
+    if (!target || !target.classList.contains("js-assign-customer-staff")) {
       return;
     }
 
@@ -362,22 +326,27 @@
       return;
     }
 
-    var userId = target.getAttribute("data-user-id");
-    var row = target.closest("tr");
-    var select = row ? row.querySelector(".js-role-select") : null;
-    var role = select ? normalizeRole(select.value) : "";
+    var customerId = target.getAttribute("data-customer-id");
+    var staffUserId = String(target.value || "").trim();
+    var currentValue = String(target.getAttribute("data-current-value") || "");
 
-    if (!userId || !role) {
+    if (!customerId || staffUserId === currentValue) {
+      return;
+    }
+
+    if (!staffUserId) {
+      target.value = currentValue;
+      showToast("error", "Please choose a registered staff member.");
       return;
     }
 
     target.disabled = true;
     try {
-      await window.apiClient.post("/users/role/update", {
-        userId: userId,
-        role: role
+      await window.apiClient.post("/customers/assign-staff", {
+        customerId: customerId,
+        staffUserId: staffUserId
       });
-      showToast("success", "User role updated.");
+      showToast("success", "Customer ownership updated.");
       await refresh();
     } catch (error) {
       target.disabled = false;
@@ -400,19 +369,13 @@
   }
 
   currentRole = role;
-
-  applyRoleCards(currentRole);
-  toggleAdminOnlySections(currentRole);
   setAccessStatus(currentRole);
 
-  if (createStaffForm) {
-    createStaffForm.addEventListener("submit", handleCreateStaffSubmit);
-  }
   if (tbody) {
     tbody.addEventListener("change", handleAppointmentAssignChange);
   }
-  if (usersBody) {
-    usersBody.addEventListener("click", handleUserRoleSaveClick);
+  if (customersBody) {
+    customersBody.addEventListener("change", handleCustomerAssignChange);
   }
 
   window.addEventListener("enchantress:session-changed", function () {
@@ -421,9 +384,8 @@
       return;
     }
     currentRole = nextRole;
-    applyRoleCards(currentRole);
-    toggleAdminOnlySections(currentRole);
     setAccessStatus(currentRole);
+    refresh();
   });
 
   refresh();

@@ -699,10 +699,15 @@ function createAppointmentWithCustomerForSession_(payload, session) {
   }
 
   var customerId = ensureCustomerForSession_(bookingCustomer, session);
+  var customer = getCustomerById_(customerId);
   var id = generateId_("APT");
   var ts = nowIso_();
   var actorRole = normalizeRole_(session && session.role ? session.role : "CUSTOMER");
   var assignedStaffId = sanitizeForSheet_(payload.assignedStaffId || payload.staffId || "");
+
+  if (!assignedStaffId && customer && customer.managedBy) {
+    assignedStaffId = sanitizeForSheet_(customer.managedBy);
+  }
 
   if (assignedStaffId) {
     var assignedStaff = getUserById_(assignedStaffId);
@@ -827,6 +832,64 @@ function assignAppointmentStaffAsAdmin_(payload, session) {
   return {
     appointmentId: payload.appointmentId,
     assignedStaffId: staff.userId,
+    changed: true
+  };
+}
+
+function assignCustomerStaffAsAdmin_(payload, session) {
+  requireRole_(session, ["ADMIN"]);
+  requireFields_(payload, ["customerId", "staffUserId"]);
+
+  var customer = getCustomerById_(payload.customerId);
+  if (!customer) {
+    throw new Error("Customer not found or inactive");
+  }
+
+  var staff = getUserById_(payload.staffUserId);
+  if (!staff || normalizeRole_(staff.role) !== "STAFF") {
+    throw new Error("Staff user not found or invalid");
+  }
+
+  var previousManagedBy = String(customer.managedBy || "");
+  var previousStaff = getUserById_(previousManagedBy);
+
+  if (String(previousManagedBy) === String(staff.userId)) {
+    return {
+      customerId: customer.customerId,
+      managedBy: staff.userId,
+      changed: false
+    };
+  }
+
+  var updatedAt = nowIso_();
+
+  updateRowById_(SHEETS.CUSTOMERS, "customerId", customer.customerId, {
+    managedBy: staff.userId,
+    updatedAt: updatedAt
+  });
+
+  logEvent_("INFO", "CUSTOMER_ASSIGN_STAFF", "Customer", customer.customerId, session.email, {
+    changedByUserId: session.userId,
+    customer: {
+      customerId: customer.customerId,
+      fullName: customer.fullName || "",
+      phone: customer.phone || "",
+      email: customer.email || ""
+    },
+    before: {
+      managedBy: previousManagedBy,
+      managedByName: previousStaff ? previousStaff.fullName : ""
+    },
+    after: {
+      managedBy: staff.userId,
+      managedByName: staff.fullName || ""
+    },
+    updatedAt: updatedAt
+  });
+
+  return {
+    customerId: customer.customerId,
+    managedBy: staff.userId,
     changed: true
   };
 }

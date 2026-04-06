@@ -29,7 +29,8 @@
         <div class="admin-hero-copy d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3">
           <div>
             <h1 class="hero-title mb-2">Admin Dashboard</h1>
-            <p class="hero-subtitle mb-0">Track today's appointments, monitor service flow, and keep revenue visibility in one glance.</p>
+            <p class="hero-subtitle mb-0">Track appointments, monitor customer ownership, and assign work to registered staff in one place.</p>
+            <p id="admin-access-status" class="admin-access-status mb-0 mt-2">Checking your account role...</p>
           </div>
           <div class="admin-toolbar">
             <label for="dashboard-date" class="form-label mb-1">Dashboard date</label>
@@ -38,34 +39,6 @@
               <button id="refresh" class="btn btn-primary cta-button admin-refresh-btn">Refresh Dashboard</button>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section class="glass-section admin-access-section mb-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-          <h2 class="section-title mb-0">Access and Actions</h2>
-          <span class="glass-pill">Frontend Guard Active</span>
-        </div>
-        <p id="admin-access-status" class="admin-access-status mb-3">Checking your account role...</p>
-        <div class="admin-action-grid">
-          <article class="admin-action-card d-none" data-admin-role="STAFF">
-            <p class="admin-action-chip">Staff</p>
-            <h3 class="admin-action-title">My Service Session</h3>
-            <ul class="admin-action-list">
-              <li>View only my schedule board (backend pending)</li>
-              <li>Mark appointment as started (backend pending)</li>
-              <li>Mark appointment as completed with session notes (backend pending)</li>
-            </ul>
-          </article>
-          <article class="admin-action-card d-none" data-admin-role="ADMIN">
-            <p class="admin-action-chip">Admin</p>
-            <h3 class="admin-action-title">Branch Control</h3>
-            <ul class="admin-action-list">
-              <li>Change promo pricing and schedule windows (backend pending)</li>
-              <li>View full master customer records (backend pending)</li>
-              <li>Delete or void transactions with audit trail (backend pending)</li>
-            </ul>
-          </article>
         </div>
       </section>
 
@@ -96,58 +69,25 @@
         </div>
       </section>
 
-      <section class="card border-0 mb-4 d-none" data-admin-only>
+      <section class="card admin-schedule-card border-0 mb-4">
         <div class="card-body p-4 p-lg-5">
           <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
-            <h2 class="section-title mb-0">Staff Onboarding</h2>
-            <span class="admin-schedule-chip">Admin Only</span>
-          </div>
-          <form id="create-staff-form" class="row g-3" novalidate>
-            <div class="col-md-6">
-              <label class="form-label" for="staffFullName">Full Name</label>
-              <input id="staffFullName" name="fullName" class="form-control" required />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="staffEmail">Email</label>
-              <input id="staffEmail" name="email" type="email" class="form-control" required />
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="staffPhone">Phone</label>
-              <input id="staffPhone" name="phone" class="form-control" required />
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="staffPassword">Temporary Password</label>
-              <input id="staffPassword" name="password" type="password" minlength="8" class="form-control" required />
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="staffDepartment">Department</label>
-              <input id="staffDepartment" name="department" class="form-control" placeholder="Nail Care" />
-            </div>
-            <div class="col-12">
-              <button class="btn btn-primary cta-button" type="submit">Create Staff Account</button>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      <section class="card border-0 mb-4 d-none" data-admin-only>
-        <div class="card-body p-4 p-lg-5">
-          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
-            <h2 class="section-title mb-0">User Role Management</h2>
-            <span class="admin-schedule-chip">Admin Only</span>
+            <h2 class="section-title mb-0">Customer Ownership</h2>
+            <span class="admin-schedule-chip">Google-Sheets style monitor</span>
           </div>
           <div class="table-responsive">
             <table class="table admin-table table-sm align-middle mb-0">
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Phone</th>
                   <th>Email</th>
-                  <th>Department</th>
-                  <th>Role</th>
-                  <th>Save</th>
+                  <th>Current Staff</th>
+                  <th>Assign Staff</th>
+                  <th>Ownership</th>
                 </tr>
               </thead>
-              <tbody id="users-body"></tbody>
+              <tbody id="customers-body"></tbody>
             </table>
           </div>
         </div>

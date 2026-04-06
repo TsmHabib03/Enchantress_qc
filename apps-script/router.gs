@@ -127,6 +127,11 @@ function routeGatewayEnvelope_(e) {
       return jsonSuccess_({ customers: listCustomersForAdmin_(customersSession) });
     }
 
+    if (path === "/customers/assign-staff" && method === "POST") {
+      var customerAssignSession = requiredSession();
+      return jsonSuccess_(assignCustomerStaffAsAdmin_(body, customerAssignSession));
+    }
+
     if (path === "/reports/summary" && method === "GET") {
       var reportDate = query.date;
       var reportSession = optionalSession();
