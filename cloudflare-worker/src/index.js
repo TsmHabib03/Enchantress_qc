@@ -2,6 +2,7 @@ const limiterStore = new Map();
 const DEFAULT_FRONTEND_URL = "https://production.enchantress-qc-frontend.pages.dev/";
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://production.enchantress-qc-frontend.pages.dev",
+  "https://*.enchantress-qc-frontend.pages.dev",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:3000",
@@ -547,16 +548,29 @@ function isTurnstileRequiredForPath(path, method, env) {
 
 function normalizeOrigin(origin) {
   try {
-    return new URL(origin).origin;
+    return new URL(origin).origin.toLowerCase();
   } catch (error) {
     return "";
   }
 }
 
+function normalizeAllowedOriginEntry(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) {
+    return "";
+  }
+
+  if (raw.indexOf("*") >= 0) {
+    return raw.replace(/\/+$/, "");
+  }
+
+  return normalizeOrigin(raw);
+}
+
 function getAllowedOrigins(env) {
   const configured = String(env.ALLOWED_ORIGINS || "")
     .split(",")
-    .map((value) => normalizeOrigin(String(value || "").trim()))
+    .map((value) => normalizeAllowedOriginEntry(value))
     .filter((value) => !!value);
 
   const frontendOrigin = normalizeOrigin(env.FRONTEND_URL || "");
@@ -572,6 +586,15 @@ function getAllowedOrigins(env) {
   );
 }
 
+function escapeRegex(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function wildcardToRegex(pattern) {
+  const escaped = escapeRegex(pattern).replace(/\\\*/g, ".*");
+  return new RegExp("^" + escaped + "$");
+}
+
 function isOriginAllowed(origin, env) {
   if (!origin) {
     return true;
@@ -582,7 +605,25 @@ function isOriginAllowed(origin, env) {
     return false;
   }
 
-  return getAllowedOrigins(env).indexOf(normalized) >= 0;
+  const allowedOrigins = getAllowedOrigins(env);
+  for (const allowed of allowedOrigins) {
+    if (!allowed) {
+      continue;
+    }
+
+    if (allowed.indexOf("*") >= 0) {
+      if (wildcardToRegex(allowed).test(normalized)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (allowed === normalized) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function getFrontendRedirectTarget(frontendUrl, requestUrl) {

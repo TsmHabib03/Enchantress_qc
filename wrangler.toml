@@ -6,7 +6,7 @@ compatibility_date = "2026-04-02"
 APP_VERSION = "0.1.0"
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4w28F8YNWS-UqbPDcBZcuauCseB5gf8JvFPwNbGqCIlFu281TJ0X7UJ_T2XHVs4Pe1A/exec"
 FRONTEND_URL = "https://production.enchantress-qc-frontend.pages.dev/"
-ALLOWED_ORIGINS = "https://production.enchantress-qc-frontend.pages.dev,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+ALLOWED_ORIGINS = "https://production.enchantress-qc-frontend.pages.dev,https://*.enchantress-qc-frontend.pages.dev,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
 MAX_REQUEST_BYTES = "65536"
 REQUIRE_TURNSTILE = "false"
 
