@@ -4,11 +4,17 @@ compatibility_date = "2026-04-02"
 
 [vars]
 APP_VERSION = "0.1.0"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfeOreJ2WUSXTHsN978Qcyo2xIbsvaZuaeivN2TRpuJZSJEPr4GJHhrrUBjAkefarEZA/exec"
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4w28F8YNWS-UqbPDcBZcuauCseB5gf8JvFPwNbGqCIlFu281TJ0X7UJ_T2XHVs4Pe1A/exec"
 FRONTEND_URL = "https://production.enchantress-qc-frontend.pages.dev/"
+ALLOWED_ORIGINS = "https://production.enchantress-qc-frontend.pages.dev,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+MAX_REQUEST_BYTES = "65536"
+REQUIRE_TURNSTILE = "false"
 
 # Configure in Cloudflare dashboard as environment variables/secrets:
 # APPS_SCRIPT_URL
 # FRONTEND_URL (optional; used to redirect / to frontend landing page)
+# ALLOWED_ORIGINS (comma-separated frontend origins)
+# MAX_REQUEST_BYTES (request body cap in bytes)
+# REQUIRE_TURNSTILE (set true in production after frontend turnstile token wiring)
 # SHARED_SECRET
 # TURNSTILE_SECRET_KEY (optional)

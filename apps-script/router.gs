@@ -59,7 +59,7 @@ function routeGatewayEnvelope_(e) {
     }
 
     if (path === "/appointments/create" && method === "POST") {
-      var createSession = optionalSession();
+      var createSession = isRbacEnabled_() ? requiredSession() : optionalSession();
       var appointment = createAppointmentWithCustomerForSession_(body, createSession);
       return jsonSuccess_(appointment);
     }
@@ -75,14 +75,6 @@ function routeGatewayEnvelope_(e) {
     if (path === "/auth/claim-initial-admin" && method === "POST") {
       var claimSession = requiredSession();
       return jsonSuccess_(claimInitialAdminForSession_(claimSession));
-    }
-
-    if (path === "/auth/register" && method === "GET" && hasBody) {
-      return jsonSuccess_(registerUser_(body));
-    }
-
-    if (path === "/auth/login" && method === "GET" && hasBody) {
-      return jsonSuccess_(loginUser_(body));
     }
 
     if (path === "/appointments/list" && method === "GET") {
@@ -134,7 +126,7 @@ function routeGatewayEnvelope_(e) {
 
     if (path === "/reports/summary" && method === "GET") {
       var reportDate = query.date;
-      var reportSession = optionalSession();
+      var reportSession = isRbacEnabled_() ? requiredSession() : optionalSession();
       return jsonSuccess_(getDailySummary_(reportDate, reportSession));
     }
 

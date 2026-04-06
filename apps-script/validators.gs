@@ -10,6 +10,27 @@ function validateAppointmentInput_(payload) {
   requireFields_(payload, ["customer", "serviceId", "date", "startTime"]);
   requireFields_(payload.customer, ["fullName", "phone"]);
 
+  var fullName = String(payload.customer.fullName || "").trim();
+  var phone = String(payload.customer.phone || "").trim();
+  var email = String(payload.customer.email || "").trim();
+  var serviceId = String(payload.serviceId || "").trim();
+
+  if (fullName.length < 2 || fullName.length > 120) {
+    throw new Error("Invalid customer fullName length");
+  }
+
+  if (!/^[+0-9()\-\s]{7,22}$/.test(phone)) {
+    throw new Error("Invalid phone format");
+  }
+
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+    throw new Error("Invalid email format");
+  }
+
+  if (serviceId.length < 3 || serviceId.length > 64) {
+    throw new Error("Invalid serviceId");
+  }
+
   if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.date)) {
     throw new Error("Invalid date format, expected YYYY-MM-DD");
   }
