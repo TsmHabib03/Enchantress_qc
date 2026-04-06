@@ -22,6 +22,9 @@
     if (!path || path === "/") {
       return "/index.html";
     }
+    if (path.length > 1 && path.charAt(path.length - 1) === "/") {
+      path = path.slice(0, -1);
+    }
     return path;
   }
 
@@ -37,21 +40,21 @@
   var isStaff = path === "/staff" || path === "/staff.html";
 
   if (isIndex && role === "ADMIN") {
-    window.location.replace("/admin");
+    window.location.replace("admin.html");
     return;
   }
 
   if (isIndex && role === "STAFF") {
-    window.location.replace("/staff");
+    window.location.replace("staff.html");
     return;
   }
 
   if (isAdmin && role === "STAFF") {
-    window.location.replace("/staff");
+    window.location.replace("staff.html");
     return;
   }
 
   if (isStaff && role === "ADMIN") {
-    window.location.replace("/admin");
+    window.location.replace("admin.html");
   }
 })();

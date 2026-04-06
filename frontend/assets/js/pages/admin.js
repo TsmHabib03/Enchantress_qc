@@ -45,7 +45,7 @@
   }
 
   function redirectToStaff() {
-    window.location.replace("/staff");
+    window.location.replace("staff.html");
   }
 
   function setAccessStatus(role) {

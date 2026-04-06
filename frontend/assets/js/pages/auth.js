@@ -21,10 +21,10 @@
   function getRoleLandingPage(role) {
     var normalized = String(role || "").trim().toUpperCase();
     if (normalized === "ADMIN") {
-      return "/admin";
+      return "admin.html";
     }
     if (normalized === "STAFF") {
-      return "/staff";
+      return "staff.html";
     }
     return "";
   }
@@ -185,11 +185,11 @@
 
       var role = String((data && data.user && data.user.role) || "").trim().toUpperCase();
       if (role === "ADMIN") {
-        window.location.replace("/admin");
+        window.location.replace("admin.html");
         return;
       }
       if (role === "STAFF") {
-        window.location.replace("/staff");
+        window.location.replace("staff.html");
         return;
       }
 
@@ -198,7 +198,7 @@
           var claim = await window.apiClient.post("/auth/claim-initial-admin", {}, { retries: 0 });
           if (claim && claim.claimed && claim.token && claim.user) {
             persistSession(claim);
-            window.location.replace("/admin");
+            window.location.replace("admin.html");
             return;
           }
         } catch (claimError) {

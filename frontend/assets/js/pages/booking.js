@@ -738,11 +738,11 @@
   async function init() {
     var role = getRole();
     if (role === "ADMIN") {
-      window.location.replace("/admin");
+      window.location.replace("admin.html");
       return;
     }
     if (role === "STAFF") {
-      window.location.replace("/staff");
+      window.location.replace("staff.html");
       return;
     }
 
