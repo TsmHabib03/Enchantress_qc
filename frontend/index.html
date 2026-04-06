@@ -329,7 +329,7 @@
               <label class="form-label" for="loginPassword">Password</label>
               <input id="loginPassword" name="password" type="password" class="form-control" minlength="8" required />
             </div>
-            <button class="btn btn-primary w-100" type="submit">Login</button>
+            <button id="login-submit-button" class="btn btn-primary w-100" type="submit">Login</button>
           </form>
 
           <form id="register-form" class="auth-form d-none" novalidate>
@@ -353,6 +353,13 @@
           </form>
 
           <div id="auth-toast" class="alert mt-3 d-none" role="alert"></div>
+
+          <div id="auth-login-loader" class="auth-login-loader d-none" role="status" aria-live="polite" aria-label="Signing in">
+            <div class="auth-login-loader-panel">
+              <span class="auth-login-spinner" aria-hidden="true"></span>
+              <p class="auth-login-loader-text mb-0">Signing in...</p>
+            </div>
+          </div>
         </div>
       </div>
 

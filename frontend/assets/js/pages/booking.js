@@ -106,6 +106,36 @@
     return !!getSession();
   }
 
+  function roleLandingTarget(role) {
+    var normalized = String(role || "").toUpperCase();
+    if (normalized === "ADMIN") {
+      return "admin.html";
+    }
+    if (normalized === "STAFF") {
+      return "staff.html";
+    }
+    return "";
+  }
+
+  function isLandingPagePath() {
+    var path = String(window.location.pathname || "").toLowerCase();
+    return !path || path === "/" || path === "/index.html";
+  }
+
+  function redirectPrivilegedRoleIfNeeded() {
+    if (!isLandingPagePath()) {
+      return false;
+    }
+
+    var target = roleLandingTarget(getRole());
+    if (!target) {
+      return false;
+    }
+
+    window.location.replace(target);
+    return true;
+  }
+
   function openAuthModal() {
     if (window.authSession && typeof window.authSession.openModal === "function") {
       window.authSession.openModal();
@@ -716,6 +746,10 @@
   }
 
   function handleSessionChange() {
+    if (redirectPrivilegedRoleIfNeeded()) {
+      return;
+    }
+
     syncRolePanels();
     updateBookingVisibility();
     prefillProfileFromSession();
@@ -736,13 +770,7 @@
   }
 
   async function init() {
-    var role = getRole();
-    if (role === "ADMIN") {
-      window.location.replace("admin.html");
-      return;
-    }
-    if (role === "STAFF") {
-      window.location.replace("staff.html");
+    if (redirectPrivilegedRoleIfNeeded()) {
       return;
     }
 

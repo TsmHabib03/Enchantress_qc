@@ -5,10 +5,13 @@
   var closeButton = document.getElementById("auth-close");
   var loginForm = document.getElementById("login-form");
   var registerForm = document.getElementById("register-form");
+  var loginSubmitButton = document.getElementById("login-submit-button");
+  var loginLoader = document.getElementById("auth-login-loader");
   var tabButtons = Array.prototype.slice.call(document.querySelectorAll(".auth-tab"));
   var authToast = document.getElementById("auth-toast");
   var authStatus = document.getElementById("auth-status");
   var sessionCache = null;
+  var isLoginSubmitting = false;
   var SESSION_KEY = "enchantressSession";
 
   function getCurrentPageName() {
@@ -45,6 +48,30 @@
     }
 
     window.location.replace(targetPage);
+  }
+
+  function setLoginLoading(isLoading) {
+    isLoginSubmitting = !!isLoading;
+
+    if (loginSubmitButton) {
+      if (!loginSubmitButton.getAttribute("data-default-text")) {
+        loginSubmitButton.setAttribute("data-default-text", loginSubmitButton.textContent || "Login");
+      }
+
+      loginSubmitButton.disabled = isLoginSubmitting;
+      loginSubmitButton.classList.toggle("is-loading", isLoginSubmitting);
+      loginSubmitButton.textContent = isLoginSubmitting
+        ? "Signing in..."
+        : loginSubmitButton.getAttribute("data-default-text") || "Login";
+    }
+
+    if (loginLoader) {
+      loginLoader.classList.toggle("d-none", !isLoginSubmitting);
+    }
+
+    if (closeButton) {
+      closeButton.disabled = isLoginSubmitting;
+    }
   }
 
   function showToast(type, message) {
@@ -133,6 +160,9 @@
     if (!modal) {
       return;
     }
+    if (isLoginSubmitting) {
+      return;
+    }
     modal.classList.add("d-none");
     document.body.style.overflow = "auto";
   }
@@ -169,6 +199,10 @@
   async function handleLogin(event) {
     event.preventDefault();
 
+    if (isLoginSubmitting) {
+      return;
+    }
+
     if (!loginForm.checkValidity()) {
       loginForm.reportValidity();
       return;
@@ -179,17 +213,26 @@
       password: loginForm.password.value
     };
 
+    setLoginLoading(true);
+
     try {
       var data = await window.apiClient.post("/auth/login", payload, { retries: 0 });
       persistSession(data);
 
-      var role = String((data && data.user && data.user.role) || "").trim().toUpperCase();
-      if (role === "ADMIN") {
-        window.location.replace("admin.html");
-        return;
-      }
-      if (role === "STAFF") {
-        window.location.replace("staff.html");
+      var session = window.authSession && typeof window.authSession.getSession === "function"
+        ? window.authSession.getSession()
+        : parseStoredSession();
+      var role = String(
+        (session && session.user && session.user.role) ||
+          (data && data.user && data.user.role) ||
+          ""
+      )
+        .trim()
+        .toUpperCase();
+      var redirectTarget = getRoleLandingPage(role);
+
+      if (redirectTarget && getCurrentPageName() === "index.html") {
+        window.location.replace(redirectTarget);
         return;
       }
 
@@ -209,7 +252,9 @@
       showToast("success", "Login successful.");
       setTimeout(closeModal, 450);
     } catch (error) {
-      showToast("error", error.message);
+      showToast("error", error.userMessage || error.message || "Login failed.");
+    } finally {
+      setLoginLoading(false);
     }
   }
 
@@ -299,6 +344,9 @@
 
   if (modal) {
     modal.addEventListener("click", function (event) {
+      if (isLoginSubmitting) {
+        return;
+      }
       if (event.target && event.target.classList.contains("auth-modal-backdrop")) {
         closeModal();
       }
@@ -307,6 +355,9 @@
 
   tabButtons.forEach(function (button) {
     button.addEventListener("click", function () {
+      if (isLoginSubmitting) {
+        return;
+      }
       activateTab(button.getAttribute("data-auth-tab"));
     });
   });
