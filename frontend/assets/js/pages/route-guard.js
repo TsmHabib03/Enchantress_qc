@@ -57,21 +57,21 @@
   var isStaff = path === "/staff" || path === "/staff.html";
 
   if (isIndex && role === "ADMIN") {
-    window.location.replace("admin.html");
+    window.location.replace("/admin");
     return;
   }
 
   if (isIndex && role === "STAFF") {
-    window.location.replace("staff.html");
+    window.location.replace("/staff");
     return;
   }
 
   if (isAdmin && role === "STAFF") {
-    window.location.replace("staff.html");
+    window.location.replace("/staff");
     return;
   }
 
   if (isStaff && role === "ADMIN") {
-    window.location.replace("admin.html");
+    window.location.replace("/admin");
   }
 })();

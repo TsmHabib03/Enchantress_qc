@@ -126,10 +126,10 @@
   function roleLandingTarget(role) {
     var normalized = normalizeRole(role);
     if (normalized === "ADMIN") {
-      return "admin.html";
+      return "/admin";
     }
     if (normalized === "STAFF") {
-      return "staff.html";
+      return "/staff";
     }
     return "";
   }

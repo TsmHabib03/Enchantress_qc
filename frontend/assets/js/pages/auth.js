@@ -41,10 +41,10 @@
   function getRoleLandingPage(role) {
     var normalized = normalizeRole(role);
     if (normalized === "ADMIN") {
-      return "admin.html";
+      return "/admin";
     }
     if (normalized === "STAFF") {
-      return "staff.html";
+      return "/staff";
     }
     return "";
   }
@@ -257,7 +257,7 @@
           var claim = await window.apiClient.post("/auth/claim-initial-admin", {}, { retries: 0 });
           if (claim && claim.claimed && claim.token && claim.user) {
             persistSession(claim);
-            window.location.replace("admin.html");
+            window.location.replace("/admin");
             return;
           }
         } catch (claimError) {
