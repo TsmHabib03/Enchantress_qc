@@ -97,9 +97,26 @@
     return session && session.user ? session.user : null;
   }
 
+  function normalizeRole(role) {
+    var normalized = String(role || "").trim().toUpperCase();
+    if (!normalized) {
+      return "GUEST";
+    }
+    if (normalized === "ADMIN" || normalized.indexOf("ADMIN") === 0) {
+      return "ADMIN";
+    }
+    if (normalized === "STAFF" || normalized.indexOf("STAFF") === 0) {
+      return "STAFF";
+    }
+    if (normalized === "CUSTOMER" || normalized.indexOf("CUSTOMER") === 0) {
+      return "CUSTOMER";
+    }
+    return normalized;
+  }
+
   function getRole() {
     var user = getUser();
-    return user ? String(user.role || "").toUpperCase() : "GUEST";
+    return user ? normalizeRole(user.role) : "GUEST";
   }
 
   function isAuthenticated() {
@@ -107,7 +124,7 @@
   }
 
   function roleLandingTarget(role) {
-    var normalized = String(role || "").toUpperCase();
+    var normalized = normalizeRole(role);
     if (normalized === "ADMIN") {
       return "admin.html";
     }

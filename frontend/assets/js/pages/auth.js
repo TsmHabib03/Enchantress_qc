@@ -21,8 +21,25 @@
     return last.toLowerCase();
   }
 
-  function getRoleLandingPage(role) {
+  function normalizeRole(role) {
     var normalized = String(role || "").trim().toUpperCase();
+    if (!normalized) {
+      return "GUEST";
+    }
+    if (normalized === "ADMIN" || normalized.indexOf("ADMIN") === 0) {
+      return "ADMIN";
+    }
+    if (normalized === "STAFF" || normalized.indexOf("STAFF") === 0) {
+      return "STAFF";
+    }
+    if (normalized === "CUSTOMER" || normalized.indexOf("CUSTOMER") === 0) {
+      return "CUSTOMER";
+    }
+    return normalized;
+  }
+
+  function getRoleLandingPage(role) {
+    var normalized = normalizeRole(role);
     if (normalized === "ADMIN") {
       return "admin.html";
     }
@@ -226,9 +243,8 @@
         (session && session.user && session.user.role) ||
           (data && data.user && data.user.role) ||
           ""
-      )
-        .trim()
-        .toUpperCase();
+      );
+      role = normalizeRole(role);
       var redirectTarget = getRoleLandingPage(role);
 
       if (redirectTarget && getCurrentPageName() === "index.html") {
@@ -305,7 +321,7 @@
     },
     getRole: function () {
       var user = this.getUser();
-      return user ? String(user.role || "").toUpperCase() : "GUEST";
+      return user ? normalizeRole(user.role) : "GUEST";
     },
     isAuthenticated: function () {
       return !!this.getSession();

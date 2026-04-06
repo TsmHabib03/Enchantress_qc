@@ -24,8 +24,14 @@ function normalizeEmail_(email) {
 
 function normalizeRole_(role) {
   var value = sanitizeForSheet_(role).toUpperCase();
-  if (value === "ADMIN" || value === "STAFF" || value === "CUSTOMER") {
-    return value;
+  if (value === "ADMIN" || value.indexOf("ADMIN") === 0) {
+    return "ADMIN";
+  }
+  if (value === "STAFF" || value.indexOf("STAFF") === 0) {
+    return "STAFF";
+  }
+  if (value === "CUSTOMER" || value.indexOf("CUSTOMER") === 0) {
+    return "CUSTOMER";
   }
   return "CUSTOMER";
 }

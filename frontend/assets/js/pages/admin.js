@@ -32,7 +32,17 @@
   }
 
   function normalizeRole(role) {
-    return String(role || "").toUpperCase();
+    var normalized = String(role || "").trim().toUpperCase();
+    if (normalized === "ADMIN" || normalized.indexOf("ADMIN") === 0) {
+      return "ADMIN";
+    }
+    if (normalized === "STAFF" || normalized.indexOf("STAFF") === 0) {
+      return "STAFF";
+    }
+    if (normalized === "CUSTOMER" || normalized.indexOf("CUSTOMER") === 0) {
+      return "CUSTOMER";
+    }
+    return normalized;
   }
 
   function redirectToLanding(reason) {

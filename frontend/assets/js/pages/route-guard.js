@@ -28,12 +28,29 @@
     return path;
   }
 
+  function normalizeRole(role) {
+    var normalized = String(role || "").trim().toUpperCase();
+    if (!normalized) {
+      return "GUEST";
+    }
+    if (normalized === "ADMIN" || normalized.indexOf("ADMIN") === 0) {
+      return "ADMIN";
+    }
+    if (normalized === "STAFF" || normalized.indexOf("STAFF") === 0) {
+      return "STAFF";
+    }
+    if (normalized === "CUSTOMER" || normalized.indexOf("CUSTOMER") === 0) {
+      return "CUSTOMER";
+    }
+    return normalized;
+  }
+
   var session = parseSession();
   if (!session || !session.user) {
     return;
   }
 
-  var role = String(session.user.role || "").trim().toUpperCase();
+  var role = normalizeRole(session.user.role);
   var path = normalizePath(window.location.pathname);
   var isIndex = path === "/index.html";
   var isAdmin = path === "/admin" || path === "/admin.html";
